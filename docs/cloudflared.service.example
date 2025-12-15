@@ -1,0 +1,24 @@
+# Service systemd pour Cloudflare Tunnel
+#
+# Instructions:
+# 1. Ajuster le chemin de cloudflared si nécessaire
+# 2. Copier ce fichier vers /etc/systemd/system/cloudflared.service
+# 3. Exécuter: sudo systemctl daemon-reload
+# 4. Exécuter: sudo systemctl enable cloudflared
+# 5. Exécuter: sudo systemctl start cloudflared
+
+[Unit]
+Description=Cloudflare Tunnel
+After=network.target
+
+[Service]
+Type=simple
+User=root
+ExecStart=/usr/local/bin/cloudflared tunnel --config /etc/cloudflared/config.yml run
+Restart=on-failure
+RestartSec=5s
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
