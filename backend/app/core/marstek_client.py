@@ -180,7 +180,7 @@ class MarstekUDPClient:
                 )
 
                 sock.close()
-                return response
+                return response  # type: ignore[no-any-return]
 
             except TimeoutError as e:
                 last_error = e

@@ -24,7 +24,7 @@ async def get_tempo_service() -> TempoService:
     return TempoService()
 
 
-@router.get("/today", response_model=TempoCalendarResponse)
+@router.get("/today", response_model=TempoCalendarResponse)  # type: ignore[untyped-decorator]
 @limiter.limit("60/minute")
 async def get_tempo_today(
     request: Request,
@@ -53,7 +53,7 @@ async def get_tempo_today(
         )
 
 
-@router.get("/tomorrow", response_model=TempoCalendarResponse)
+@router.get("/tomorrow", response_model=TempoCalendarResponse)  # type: ignore[untyped-decorator]
 @limiter.limit("60/minute")
 async def get_tempo_tomorrow(
     request: Request,
@@ -84,7 +84,7 @@ async def get_tempo_tomorrow(
         )
 
 
-@router.get("/calendar", response_model=list[TempoCalendarResponse])
+@router.get("/calendar", response_model=list[TempoCalendarResponse])  # type: ignore[untyped-decorator]
 @limiter.limit("30/minute")
 async def get_tempo_calendar(
     request: Request,

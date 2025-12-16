@@ -16,7 +16,7 @@ async def get_tempo_service() -> TempoService:
     return TempoService()
 
 
-@router.get("/today", response_model=dict)
+@router.get("/today", response_model=dict)  # type: ignore[untyped-decorator]
 async def get_tempo_today(
     tempo_service: TempoService = Depends(get_tempo_service),
 ) -> dict:
@@ -42,7 +42,7 @@ async def get_tempo_today(
         )
 
 
-@router.get("/tomorrow", response_model=dict)
+@router.get("/tomorrow", response_model=dict)  # type: ignore[untyped-decorator]
 async def get_tempo_tomorrow(
     tempo_service: TempoService = Depends(get_tempo_service),
 ) -> dict:
@@ -70,7 +70,7 @@ async def get_tempo_tomorrow(
         )
 
 
-@router.get("/precharge", response_model=dict)
+@router.get("/precharge", response_model=dict)  # type: ignore[untyped-decorator]
 async def should_activate_precharge(
     tempo_service: TempoService = Depends(get_tempo_service),
 ) -> dict:
@@ -101,7 +101,7 @@ async def should_activate_precharge(
         )
 
 
-@router.get("/remaining", response_model=dict)
+@router.get("/remaining", response_model=dict)  # type: ignore[untyped-decorator]
 async def get_remaining_days(
     tempo_service: TempoService = Depends(get_tempo_service),
 ) -> dict:

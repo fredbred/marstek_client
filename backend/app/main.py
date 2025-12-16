@@ -44,7 +44,7 @@ app.add_middleware(
 )
 
 
-@app.on_event("startup")
+@app.on_event("startup")  # type: ignore[untyped-decorator]
 async def startup_event() -> None:
     """Startup event handler."""
     logger.info(
@@ -69,7 +69,7 @@ async def startup_event() -> None:
         # Le scheduler est optionnel, on continue sans
 
 
-@app.on_event("shutdown")
+@app.on_event("shutdown")  # type: ignore[untyped-decorator]
 async def shutdown_event() -> None:
     """Shutdown event handler."""
     logger.info("application_shutting_down")
@@ -81,7 +81,7 @@ async def shutdown_event() -> None:
         logger.error("scheduler_shutdown_error", error=str(e))
 
 
-@app.get("/")
+@app.get("/")  # type: ignore[untyped-decorator]
 async def root() -> dict[str, str]:
     """Root endpoint."""
     return {
@@ -91,7 +91,7 @@ async def root() -> dict[str, str]:
     }
 
 
-@app.get("/health")
+@app.get("/health")  # type: ignore[untyped-decorator]
 async def health() -> dict[str, str]:
     """Health check endpoint."""
     return {"status": "healthy"}

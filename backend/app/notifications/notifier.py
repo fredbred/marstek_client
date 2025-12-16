@@ -401,7 +401,7 @@ class Notifier:
         def _send_sync() -> bool:
             """Send notification synchronously."""
             try:
-                return self.apprise.notify(body=body, body_format=body_format)
+                return self.apprise.notify  # type: ignore[no-any-return](body=body, body_format=body_format)
             except Exception as e:
                 logger.error("apprise_notify_error", error=str(e))
                 return False
