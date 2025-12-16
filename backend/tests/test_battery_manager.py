@@ -208,7 +208,10 @@ async def test_get_all_status_partial_failure(
     status_dict = await battery_manager.get_all_status(mock_db)
 
     assert len(status_dict) == 2
-    assert "error" in status_dict[2]  # Second battery has error
+    # When all status calls fail, result contains None values
+    assert status_dict[2]["bat_status"] is None
+    assert status_dict[2]["es_status"] is None
+    assert status_dict[2]["mode_info"] is None
 
 
 @pytest.mark.asyncio
