@@ -26,8 +26,6 @@ limiter = Limiter(key_func=get_remote_address)
 router = APIRouter(prefix="/modes", tags=["modes"])
 
 # Add rate limit exception handler
-router.state.limiter = limiter
-router.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 
 @router.get("/current", response_model=list[ModeStatusResponse])

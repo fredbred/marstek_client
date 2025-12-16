@@ -55,7 +55,7 @@ class TempoService:
     Gère le cache Redis pour optimiser les appels API et réduire la latence.
     """
 
-    BASE_URL = "https://digital.iservices.rte-france.com/open_api/tempo_like_supply_contract/v1"
+    BASE_URL = "https://www.api-couleur-tempo.fr/api"
 
     def __init__(self, redis_client: aioredis.Redis | None = None) -> None:
         """Initialize Tempo service.
@@ -172,23 +172,28 @@ class TempoService:
             # Endpoint pour récupérer la couleur d'une date
             # Format attendu par l'API RTE
             # Documentation: https://data.rte-france.com/catalog/-/api/tempo
-            url = f"{self.BASE_URL}/tempo_like_calendars"
-            params: dict[str, Any] = {
-                "start_date": target_date.isoformat(),
-                "end_date": target_date.isoformat(),
-            }
-
-            if self.config.contract_number:
-                params["contract_number"] = self.config.contract_number
-
-            response = await http_client.get(url, params=params)
+            # API alternative api-couleur-tempo.fr (gratuite, sans authentification)
+            url = f"{self.BASE_URL}/joursTempo"
+            response = await http_client.get(url)
             response.raise_for_status()
-
             data = response.json()
-
-            # Parser la réponse (format dépend de l'API RTE)
-            # Exemple de format attendu : {"tempo_like_calendars": [{"date": "2024-01-15", "value": "RED"}]}
-            color_value = self._parse_api_response(data, target_date)
+            
+            # Parser: {"dateJour": "YYYY-MM-DD", "codeJour": 1|2|3, "libCouleur": "Bleu|Blanc|Rouge"}
+            date_str = target_date.isoformat()
+            day_data = next((d for d in data if d.get("dateJour") == date_str), None)
+            if day_data:
+                lib_couleur = day_data.get("libCouleur", "").upper()
+                if lib_couleur == "BLEU":
+                    color_value = TempoColor.BLUE
+                elif lib_couleur == "BLANC":
+                    color_value = TempoColor.WHITE
+                elif lib_couleur == "ROUGE":
+                    color_value = TempoColor.RED
+                else:
+                    color_value = TempoColor.UNKNOWN
+            else:
+                logger.warning("tempo_date_not_found", date=date_str)
+                color_value = TempoColor.UNKNOWN
 
             # Mettre en cache
             try:
@@ -324,20 +329,29 @@ class TempoService:
 
             # Endpoint pour récupérer les statistiques de la saison
             # Documentation: https://data.rte-france.com/catalog/-/api/tempo
-            url = f"{self.BASE_URL}/tempo_like_supply_contracts"
-            params: dict[str, Any] = {}
-
-            if self.config.contract_number:
-                params["contract_number"] = self.config.contract_number
-
-            response = await http_client.get(url, params=params)
+            # Calculer les jours restants depuis la liste complète
+            url = f"{self.BASE_URL}/joursTempo"
+            response = await http_client.get(url)
             response.raise_for_status()
-
             data = response.json()
-
-            # Parser la réponse (format dépend de l'API RTE)
-            # Exemple : {"remaining_days": {"BLUE": 22, "WHITE": 43, "RED": 0}}
-            remaining = data.get("remaining_days", {})
+            
+            # Compter les jours restants par couleur
+            today = date.today()
+            remaining = {"BLUE": 0, "WHITE": 0, "RED": 0}
+            for day_data in data:
+                day_date_str = day_data.get("dateJour", "")
+                try:
+                    day_date = date.fromisoformat(day_date_str)
+                    if day_date >= today:
+                        lib_couleur = day_data.get("libCouleur", "").upper()
+                        if lib_couleur == "BLEU":
+                            remaining["BLUE"] += 1
+                        elif lib_couleur == "BLANC":
+                            remaining["WHITE"] += 1
+                        elif lib_couleur == "ROUGE":
+                            remaining["RED"] += 1
+                except (ValueError, TypeError):
+                    continue
 
             return {
                 "BLUE": remaining.get("BLUE", 0),

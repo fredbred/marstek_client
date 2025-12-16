@@ -44,11 +44,16 @@ def configure_logging() -> None:
             ]
         )
 
-    # Add file handler
-    file_handler = logging.FileHandler(log_dir / "marstek.log")
-    file_handler.setLevel(getattr(logging, settings.log_level))
-    logging.getLogger().addHandler(file_handler)
-
+    # Add file handler (only if we can write to the logs directory)
+    try:
+        log_dir.mkdir(parents=True, exist_ok=True)
+        log_file = log_dir / "marstek.log"
+        log_file.touch(exist_ok=True)
+        file_handler = logging.FileHandler(log_file)
+        file_handler.setLevel(getattr(logging, settings.log_level))
+        logging.getLogger().addHandler(file_handler)
+    except (PermissionError, OSError) as e:
+        logging.warning(f"Could not create log file: {e}. Logging to stdout only.")
     structlog.configure(
         processors=processors,
         wrapper_class=structlog.stdlib.BoundLogger,

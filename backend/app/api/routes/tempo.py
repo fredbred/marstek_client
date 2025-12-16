@@ -18,8 +18,6 @@ limiter = Limiter(key_func=get_remote_address)
 router = APIRouter(prefix="/tempo", tags=["tempo"])
 
 # Add rate limit exception handler
-router.state.limiter = limiter
-router.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 
 async def get_tempo_service() -> TempoService:

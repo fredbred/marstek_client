@@ -19,8 +19,6 @@ limiter = Limiter(key_func=get_remote_address)
 router = APIRouter(prefix="/schedules", tags=["schedules"])
 
 # Add rate limit exception handler
-router.state.limiter = limiter
-router.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 
 @router.get("", response_model=list[ScheduleResponse])
