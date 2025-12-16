@@ -271,6 +271,3 @@ async def test_tempo_calendar_from_dict() -> None:
     data = {"date": "2024-01-15", "color": "BLUE"}
 
     calendar = TempoCalendar.from_dict(data)
-
-    """Test TempoCalendar from_dict."""
-    data = {"date": "2024-01-15", "color": "BLUE"}
