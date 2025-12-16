@@ -1,9 +1,8 @@
 """Structured logging configuration."""
-from typing import cast
-
 import logging
 import sys
 from pathlib import Path
+from typing import cast
 
 import structlog
 from structlog.stdlib import BoundLogger
