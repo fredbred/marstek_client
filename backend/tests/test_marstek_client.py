@@ -2,12 +2,26 @@
 
 import json
 import socket
+<<<<<<< HEAD
 from unittest.mock import AsyncMock, MagicMock, patch
+=======
+from unittest.mock import MagicMock, patch
+>>>>>>> origin/main
 
 import pytest
 
 from app.core.marstek_client import MarstekAPIError, MarstekUDPClient
+<<<<<<< HEAD
 from app.models.marstek_api import BatteryStatus, DeviceInfo, ESStatus, ManualConfig, ModeInfo
+=======
+from app.models.marstek_api import (
+    BatteryStatus,
+    DeviceInfo,
+    ESStatus,
+    ManualConfig,
+    ModeInfo,
+)
+>>>>>>> origin/main
 
 
 @pytest.fixture
@@ -32,6 +46,7 @@ async def test_client_initialization(client: MarstekUDPClient) -> None:
 
 
 @pytest.mark.asyncio
+<<<<<<< HEAD
 async def test_send_command_success(client: MarstekUDPClient, mock_socket: MagicMock) -> None:
     """Test successful command sending."""
     response_data = json.dumps({
@@ -39,6 +54,19 @@ async def test_send_command_success(client: MarstekUDPClient, mock_socket: Magic
         "src": "VenusC-test",
         "result": {"id": 0, "soc": 98},
     }).encode("utf-8")
+=======
+async def test_send_command_success(
+    client: MarstekUDPClient, mock_socket: MagicMock
+) -> None:
+    """Test successful command sending."""
+    response_data = json.dumps(
+        {
+            "id": 1,
+            "src": "VenusC-test",
+            "result": {"id": 0, "soc": 98},
+        }
+    ).encode("utf-8")
+>>>>>>> origin/main
 
     mock_socket.recvfrom.return_value = (response_data, ("192.168.1.100", 30000))
 
@@ -58,7 +86,11 @@ async def test_send_command_timeout_retry(
     client: MarstekUDPClient, mock_socket: MagicMock
 ) -> None:
     """Test command retry on timeout."""
+<<<<<<< HEAD
     mock_socket.recvfrom.side_effect = socket.timeout("Timeout")
+=======
+    mock_socket.recvfrom.side_effect = TimeoutError("Timeout")
+>>>>>>> origin/main
 
     with patch.object(client, "_create_socket", return_value=mock_socket):
         with pytest.raises(TimeoutError):
@@ -71,6 +103,7 @@ async def test_send_command_timeout_retry(
 
 
 @pytest.mark.asyncio
+<<<<<<< HEAD
 async def test_send_command_jsonrpc_error(client: MarstekUDPClient, mock_socket: MagicMock) -> None:
     """Test handling of JSON-RPC error response."""
     error_response = json.dumps({
@@ -78,6 +111,19 @@ async def test_send_command_jsonrpc_error(client: MarstekUDPClient, mock_socket:
         "src": "VenusC-test",
         "error": {"code": -32601, "message": "Method not found"},
     }).encode("utf-8")
+=======
+async def test_send_command_jsonrpc_error(
+    client: MarstekUDPClient, mock_socket: MagicMock
+) -> None:
+    """Test handling of JSON-RPC error response."""
+    error_response = json.dumps(
+        {
+            "id": 1,
+            "src": "VenusC-test",
+            "error": {"code": -32601, "message": "Method not found"},
+        }
+    ).encode("utf-8")
+>>>>>>> origin/main
 
     mock_socket.recvfrom.return_value = (error_response, ("192.168.1.100", 30000))
 
@@ -92,6 +138,7 @@ async def test_send_command_jsonrpc_error(client: MarstekUDPClient, mock_socket:
 
 
 @pytest.mark.asyncio
+<<<<<<< HEAD
 async def test_broadcast_discover(client: MarstekUDPClient, mock_socket: MagicMock) -> None:
     """Test device discovery via broadcast."""
     # First response
@@ -121,11 +168,52 @@ async def test_broadcast_discover(client: MarstekUDPClient, mock_socket: MagicMo
             "ip": "192.168.1.101",
         },
     }).encode("utf-8")
+=======
+async def test_broadcast_discover(
+    client: MarstekUDPClient, mock_socket: MagicMock
+) -> None:
+    """Test device discovery via broadcast."""
+    # First response
+    response1 = json.dumps(
+        {
+            "id": 0,
+            "src": "VenusC-123456789012",
+            "result": {
+                "device": "VenusC",
+                "ver": 111,
+                "ble_mac": "123456789012",
+                "wifi_mac": "012123456789",
+                "wifi_name": "MY_HOME",
+                "ip": "192.168.1.100",
+            },
+        }
+    ).encode("utf-8")
+
+    # Second response
+    response2 = json.dumps(
+        {
+            "id": 0,
+            "src": "VenusE-987654321098",
+            "result": {
+                "device": "VenusE",
+                "ver": 112,
+                "ble_mac": "987654321098",
+                "wifi_mac": "098765432109",
+                "wifi_name": "MY_HOME",
+                "ip": "192.168.1.101",
+            },
+        }
+    ).encode("utf-8")
+>>>>>>> origin/main
 
     mock_socket.recvfrom.side_effect = [
         (response1, ("192.168.1.100", 30000)),
         (response2, ("192.168.1.101", 30000)),
+<<<<<<< HEAD
         socket.timeout(),  # End discovery
+=======
+        TimeoutError(),  # End discovery
+>>>>>>> origin/main
     ]
 
     with patch.object(client, "_create_socket", return_value=mock_socket):
@@ -139,6 +227,7 @@ async def test_broadcast_discover(client: MarstekUDPClient, mock_socket: MagicMo
 
 
 @pytest.mark.asyncio
+<<<<<<< HEAD
 async def test_get_device_info(client: MarstekUDPClient, mock_socket: MagicMock) -> None:
     """Test get_device_info method."""
     response = json.dumps({
@@ -153,6 +242,26 @@ async def test_get_device_info(client: MarstekUDPClient, mock_socket: MagicMock)
             "ip": "192.168.1.100",
         },
     }).encode("utf-8")
+=======
+async def test_get_device_info(
+    client: MarstekUDPClient, mock_socket: MagicMock
+) -> None:
+    """Test get_device_info method."""
+    response = json.dumps(
+        {
+            "id": 1,
+            "src": "VenusC-123456789012",
+            "result": {
+                "device": "VenusC",
+                "ver": 111,
+                "ble_mac": "123456789012",
+                "wifi_mac": "012123456789",
+                "wifi_name": "MY_HOME",
+                "ip": "192.168.1.100",
+            },
+        }
+    ).encode("utf-8")
+>>>>>>> origin/main
 
     mock_socket.recvfrom.return_value = (response, ("192.168.1.100", 30000))
 
@@ -166,6 +275,7 @@ async def test_get_device_info(client: MarstekUDPClient, mock_socket: MagicMock)
 
 
 @pytest.mark.asyncio
+<<<<<<< HEAD
 async def test_get_battery_status(client: MarstekUDPClient, mock_socket: MagicMock) -> None:
     """Test get_battery_status method."""
     response = json.dumps({
@@ -181,6 +291,27 @@ async def test_get_battery_status(client: MarstekUDPClient, mock_socket: MagicMo
             "rated_capacity": 2560.0,
         },
     }).encode("utf-8")
+=======
+async def test_get_battery_status(
+    client: MarstekUDPClient, mock_socket: MagicMock
+) -> None:
+    """Test get_battery_status method."""
+    response = json.dumps(
+        {
+            "id": 1,
+            "src": "VenusC-test",
+            "result": {
+                "id": 0,
+                "soc": 98,
+                "charg_flag": True,
+                "dischrg_flag": True,
+                "bat_temp": 25.0,
+                "bat_capacity": 2508.0,
+                "rated_capacity": 2560.0,
+            },
+        }
+    ).encode("utf-8")
+>>>>>>> origin/main
 
     mock_socket.recvfrom.return_value = (response, ("192.168.1.100", 30000))
 
@@ -198,6 +329,7 @@ async def test_get_battery_status_string_soc(
     client: MarstekUDPClient, mock_socket: MagicMock
 ) -> None:
     """Test get_battery_status with string SOC (API can return string)."""
+<<<<<<< HEAD
     response = json.dumps({
         "id": 1,
         "src": "VenusC-test",
@@ -208,6 +340,20 @@ async def test_get_battery_status_string_soc(
             "dischrg_flag": True,
         },
     }).encode("utf-8")
+=======
+    response = json.dumps(
+        {
+            "id": 1,
+            "src": "VenusC-test",
+            "result": {
+                "id": 0,
+                "soc": "98",  # String format
+                "charg_flag": True,
+                "dischrg_flag": True,
+            },
+        }
+    ).encode("utf-8")
+>>>>>>> origin/main
 
     mock_socket.recvfrom.return_value = (response, ("192.168.1.100", 30000))
 
@@ -220,6 +366,7 @@ async def test_get_battery_status_string_soc(
 @pytest.mark.asyncio
 async def test_get_es_status(client: MarstekUDPClient, mock_socket: MagicMock) -> None:
     """Test get_es_status method."""
+<<<<<<< HEAD
     response = json.dumps({
         "id": 1,
         "src": "VenusC-test",
@@ -237,6 +384,27 @@ async def test_get_es_status(client: MarstekUDPClient, mock_socket: MagicMock) -
             "total_load_energy": 0.0,
         },
     }).encode("utf-8")
+=======
+    response = json.dumps(
+        {
+            "id": 1,
+            "src": "VenusC-test",
+            "result": {
+                "id": 0,
+                "bat_soc": 98,
+                "bat_cap": 2560,
+                "pv_power": 580.0,
+                "ongrid_power": 100.0,
+                "offgrid_power": 0.0,
+                "bat_power": 0.0,
+                "total_pv_energy": 1000.0,
+                "total_grid_output_energy": 844.0,
+                "total_grid_input_energy": 1607.0,
+                "total_load_energy": 0.0,
+            },
+        }
+    ).encode("utf-8")
+>>>>>>> origin/main
 
     mock_socket.recvfrom.return_value = (response, ("192.168.1.100", 30000))
 
@@ -250,6 +418,7 @@ async def test_get_es_status(client: MarstekUDPClient, mock_socket: MagicMock) -
 
 
 @pytest.mark.asyncio
+<<<<<<< HEAD
 async def test_get_current_mode(client: MarstekUDPClient, mock_socket: MagicMock) -> None:
     """Test get_current_mode method."""
     response = json.dumps({
@@ -263,6 +432,25 @@ async def test_get_current_mode(client: MarstekUDPClient, mock_socket: MagicMock
             "bat_soc": 98,
         },
     }).encode("utf-8")
+=======
+async def test_get_current_mode(
+    client: MarstekUDPClient, mock_socket: MagicMock
+) -> None:
+    """Test get_current_mode method."""
+    response = json.dumps(
+        {
+            "id": 1,
+            "src": "VenusC-test",
+            "result": {
+                "id": 0,
+                "mode": "Auto",
+                "ongrid_power": 100.0,
+                "offgrid_power": 0.0,
+                "bat_soc": 98,
+            },
+        }
+    ).encode("utf-8")
+>>>>>>> origin/main
 
     mock_socket.recvfrom.return_value = (response, ("192.168.1.100", 30000))
 
@@ -275,6 +463,7 @@ async def test_get_current_mode(client: MarstekUDPClient, mock_socket: MagicMock
 
 
 @pytest.mark.asyncio
+<<<<<<< HEAD
 async def test_get_current_mode_numeric(client: MarstekUDPClient, mock_socket: MagicMock) -> None:
     """Test get_current_mode with numeric mode (API can return number)."""
     response = json.dumps({
@@ -287,6 +476,24 @@ async def test_get_current_mode_numeric(client: MarstekUDPClient, mock_socket: M
             "bat_soc": 98,
         },
     }).encode("utf-8")
+=======
+async def test_get_current_mode_numeric(
+    client: MarstekUDPClient, mock_socket: MagicMock
+) -> None:
+    """Test get_current_mode with numeric mode (API can return number)."""
+    response = json.dumps(
+        {
+            "id": 1,
+            "src": "VenusC-test",
+            "result": {
+                "id": 0,
+                "mode": 0,  # Numeric format: 0=Auto
+                "ongrid_power": 100.0,
+                "bat_soc": 98,
+            },
+        }
+    ).encode("utf-8")
+>>>>>>> origin/main
 
     mock_socket.recvfrom.return_value = (response, ("192.168.1.100", 30000))
 
@@ -299,6 +506,7 @@ async def test_get_current_mode_numeric(client: MarstekUDPClient, mock_socket: M
 @pytest.mark.asyncio
 async def test_set_mode_auto(client: MarstekUDPClient, mock_socket: MagicMock) -> None:
     """Test set_mode_auto method."""
+<<<<<<< HEAD
     response = json.dumps({
         "id": 1,
         "src": "VenusC-test",
@@ -307,6 +515,18 @@ async def test_set_mode_auto(client: MarstekUDPClient, mock_socket: MagicMock) -
             "set_result": True,
         },
     }).encode("utf-8")
+=======
+    response = json.dumps(
+        {
+            "id": 1,
+            "src": "VenusC-test",
+            "result": {
+                "id": 0,
+                "set_result": True,
+            },
+        }
+    ).encode("utf-8")
+>>>>>>> origin/main
 
     mock_socket.recvfrom.return_value = (response, ("192.168.1.100", 30000))
 
@@ -324,6 +544,7 @@ async def test_set_mode_auto(client: MarstekUDPClient, mock_socket: MagicMock) -
 
 
 @pytest.mark.asyncio
+<<<<<<< HEAD
 async def test_set_mode_manual(client: MarstekUDPClient, mock_socket: MagicMock) -> None:
     """Test set_mode_manual method."""
     response = json.dumps({
@@ -334,6 +555,22 @@ async def test_set_mode_manual(client: MarstekUDPClient, mock_socket: MagicMock)
             "set_result": True,
         },
     }).encode("utf-8")
+=======
+async def test_set_mode_manual(
+    client: MarstekUDPClient, mock_socket: MagicMock
+) -> None:
+    """Test set_mode_manual method."""
+    response = json.dumps(
+        {
+            "id": 1,
+            "src": "VenusC-test",
+            "result": {
+                "id": 0,
+                "set_result": True,
+            },
+        }
+    ).encode("utf-8")
+>>>>>>> origin/main
 
     mock_socket.recvfrom.return_value = (response, ("192.168.1.100", 30000))
 
@@ -366,6 +603,7 @@ async def test_send_command_response_id_mismatch(
 ) -> None:
     """Test handling of response ID mismatch."""
     # First response with wrong ID
+<<<<<<< HEAD
     wrong_response = json.dumps({
         "id": 999,  # Wrong ID
         "src": "VenusC-test",
@@ -378,6 +616,24 @@ async def test_send_command_response_id_mismatch(
         "src": "VenusC-test",
         "result": {"id": 0, "soc": 98},
     }).encode("utf-8")
+=======
+    wrong_response = json.dumps(
+        {
+            "id": 999,  # Wrong ID
+            "src": "VenusC-test",
+            "result": {"id": 0, "soc": 98},
+        }
+    ).encode("utf-8")
+
+    # Second response with correct ID
+    correct_response = json.dumps(
+        {
+            "id": 1,  # Correct ID
+            "src": "VenusC-test",
+            "result": {"id": 0, "soc": 98},
+        }
+    ).encode("utf-8")
+>>>>>>> origin/main
 
     mock_socket.recvfrom.side_effect = [
         (wrong_response, ("192.168.1.100", 30000)),
@@ -402,8 +658,13 @@ async def test_send_command_json_decode_error(
 
     mock_socket.recvfrom.side_effect = [
         (invalid_json, ("192.168.1.100", 30000)),
+<<<<<<< HEAD
         socket.timeout(),  # Retry fails
         socket.timeout(),  # Final retry fails
+=======
+        TimeoutError(),  # Retry fails
+        TimeoutError(),  # Final retry fails
+>>>>>>> origin/main
     ]
 
     with patch.object(client, "_create_socket", return_value=mock_socket):
@@ -411,4 +672,7 @@ async def test_send_command_json_decode_error(
             await client.send_command(
                 "192.168.1.100", 30000, {"method": "Bat.GetStatus", "params": {"id": 0}}
             )
+<<<<<<< HEAD
 
+=======
+>>>>>>> origin/main

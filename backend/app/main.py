@@ -1,13 +1,22 @@
 """FastAPI application entry point."""
 
 import os
+<<<<<<< HEAD
 import structlog
 from fastapi import FastAPI, Request
+=======
+
+from fastapi import FastAPI
+>>>>>>> origin/main
 from fastapi.middleware.cors import CORSMiddleware
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from slowapi.util import get_remote_address
 
+<<<<<<< HEAD
+=======
+from app.api.routes import batteries, modes, scheduler, tempo
+>>>>>>> origin/main
 from app.config import get_settings
 from app.core.logger import configure_logging, get_logger
 from app.database import init_db
@@ -46,7 +55,13 @@ app.add_middleware(
 @app.on_event("startup")
 async def startup_event() -> None:
     """Startup event handler."""
+<<<<<<< HEAD
     logger.info("application_starting", app_name=settings.app_name, env=settings.app_env)
+=======
+    logger.info(
+        "application_starting", app_name=settings.app_name, env=settings.app_env
+    )
+>>>>>>> origin/main
 
     # Initialiser la base de données
     try:
@@ -58,7 +73,11 @@ async def startup_event() -> None:
 
     # Initialiser et démarrer le scheduler
     try:
+<<<<<<< HEAD
         scheduler = init_scheduler()
+=======
+        init_scheduler()
+>>>>>>> origin/main
         start_scheduler()
         logger.info("scheduler_started")
     except Exception as e:
@@ -94,9 +113,12 @@ async def health() -> dict[str, str]:
     return {"status": "healthy"}
 
 
+<<<<<<< HEAD
 # Import routers
 from app.api.routes import batteries, modes, scheduler, tempo
 
+=======
+>>>>>>> origin/main
 app.include_router(batteries.router, prefix="/api/v1")
 app.include_router(modes.router, prefix="/api/v1")
 app.include_router(scheduler.router, prefix="/api/v1")

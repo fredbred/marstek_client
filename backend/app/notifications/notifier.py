@@ -77,17 +77,34 @@ class Notifier:
     """Notification service using Apprise."""
 
     def __init__(self) -> None:
+<<<<<<< HEAD
         """Initialize notifier with Apprise."""
         self.apprise = Apprise()
+=======
+>>>>>>> origin/main
         self.enabled = settings.notification.enabled
 
         if not self.enabled:
             logger.info("notifications_disabled")
+<<<<<<< HEAD
             return
 
         # Add Telegram notification if configured
         if settings.notification.telegram_enabled:
             if settings.notification.telegram_bot_token and settings.notification.telegram_chat_id:
+=======
+            self.apprise = None
+            return
+
+        self.apprise = Apprise()
+
+        # Add Telegram notification if configured
+        if settings.notification.telegram_enabled:
+            if (
+                settings.notification.telegram_bot_token
+                and settings.notification.telegram_chat_id
+            ):
+>>>>>>> origin/main
                 telegram_url = (
                     f"tgram://{settings.notification.telegram_bot_token}/"
                     f"{settings.notification.telegram_chat_id}"
@@ -329,7 +346,14 @@ class Notifier:
             result = await self.send_warning("Batterie Faible", message.strip())
 
             logger.info(
+<<<<<<< HEAD
                 "battery_low_soc_notified", battery_id=battery.id, soc=soc, threshold=threshold
+=======
+                "battery_low_soc_notified",
+                battery_id=battery.id,
+                soc=soc,
+                threshold=threshold,
+>>>>>>> origin/main
             )
 
             return result
@@ -394,8 +418,16 @@ class Notifier:
 
         def _send_sync() -> bool:
             """Send notification synchronously."""
+<<<<<<< HEAD
             try:
                 return self.apprise.notify(body=body, body_format=body_format)
+=======
+            if self.apprise is None:
+                return False
+            try:
+                return bool(self.apprise.notify(body=body, body_format=body_format))
+
+>>>>>>> origin/main
             except Exception as e:
                 logger.error("apprise_notify_error", error=str(e))
                 return False

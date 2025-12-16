@@ -3,7 +3,11 @@
 import os
 
 from redis import Redis
+<<<<<<< HEAD
 from rq import Worker, Queue, Connection
+=======
+from rq import Connection, Queue, Worker
+>>>>>>> origin/main
 
 from app.config import get_settings
 from app.core.logger import configure_logging, get_logger
@@ -27,4 +31,7 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
+<<<<<<< HEAD
 
+=======
+>>>>>>> origin/main

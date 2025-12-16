@@ -1,6 +1,9 @@
 """APScheduler configuration and initialization."""
 
+<<<<<<< HEAD
 import atexit
+=======
+>>>>>>> origin/main
 import signal
 from typing import Any
 
@@ -52,7 +55,11 @@ def init_scheduler() -> AsyncIOScheduler:
     db_url = settings.database.url.replace("+asyncpg", "").replace(
         "postgresql+asyncpg", "postgresql"
     )
+<<<<<<< HEAD
     
+=======
+
+>>>>>>> origin/main
     # Si l'URL contient encore asyncpg, la remplacer
     if "+asyncpg" in db_url:
         db_url = db_url.replace("+asyncpg", "")
@@ -149,11 +156,19 @@ def _register_jobs(scheduler: AsyncIOScheduler) -> None:
 
 def _setup_shutdown_handlers() -> None:
     """Configure les handlers pour graceful shutdown."""
+<<<<<<< HEAD
+=======
+
+>>>>>>> origin/main
     def signal_handler(signum: int, frame: Any) -> None:
         """Handler pour signaux d'arrêt."""
         logger.info("shutdown_signal_received", signal=signum)
         if _scheduler and _scheduler.running:
             import asyncio
+<<<<<<< HEAD
+=======
+
+>>>>>>> origin/main
             try:
                 loop = asyncio.get_event_loop()
                 if loop.is_running():
@@ -176,6 +191,7 @@ async def shutdown_scheduler() -> None:
     """
     global _scheduler
 
+<<<<<<< HEAD
     if _scheduler is None:
         return
 
@@ -189,6 +205,17 @@ async def shutdown_scheduler() -> None:
         logger.info("scheduler_shutdown_complete")
     except Exception as e:
         logger.error("scheduler_shutdown_error", error=str(e))
+=======
+    logger.info("scheduler_shutting_down")
+
+    try:
+        if _scheduler is not None and _scheduler.running:
+            _scheduler.shutdown(wait=True, timeout=30)
+        logger.info("scheduler_shutdown_complete")
+    except Exception as e:
+        logger.error("scheduler_shutdown_error", error=str(e))
+
+>>>>>>> origin/main
     finally:
         _scheduler = None
 
@@ -226,4 +253,7 @@ def stop_scheduler() -> None:
 
     _scheduler.shutdown(wait=False)
     logger.info("scheduler_stopped")
+<<<<<<< HEAD
 
+=======
+>>>>>>> origin/main

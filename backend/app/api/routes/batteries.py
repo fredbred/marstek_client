@@ -1,21 +1,30 @@
 """API routes for battery management."""
 
 import structlog
+<<<<<<< HEAD
 from typing import Any
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
+=======
+from fastapi import APIRouter, Depends, HTTPException, Request, status
+from slowapi import Limiter
+>>>>>>> origin/main
 from slowapi.util import get_remote_address
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.dependencies import get_battery_manager, get_db_session
+<<<<<<< HEAD
 from app.api.schemas import (
     BatteryResponse,
     BatteryStatusResponse,
     BatteryUpdate,
     MessageResponse,
 )
+=======
+from app.api.schemas import BatteryResponse, BatteryStatusResponse, BatteryUpdate
+>>>>>>> origin/main
 from app.core import BatteryManager
 from app.models import Battery
 
@@ -207,7 +216,13 @@ async def update_battery(
         await db.commit()
         await db.refresh(battery)
 
+<<<<<<< HEAD
         logger.info("battery_updated", battery_id=battery_id, fields=list(update_data.keys()))
+=======
+        logger.info(
+            "battery_updated", battery_id=battery_id, fields=list(update_data.keys())
+        )
+>>>>>>> origin/main
 
         return BatteryResponse.model_validate(battery)
 

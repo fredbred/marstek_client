@@ -62,7 +62,11 @@ warn_unused_configs = true
 disallow_untyped_defs = true
 disallow_incomplete_defs = true
 check_untyped_defs = true
+<<<<<<< HEAD
 disallow_untyped_decorators = true
+=======
+disallow_untyped_decorators = false
+>>>>>>> origin/main
 no_implicit_optional = true
 warn_redundant_casts = true
 warn_unused_ignores = true

@@ -1,0 +1,130 @@
+name: Tests
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    
+    services:
+      postgres:
+        image: timescale/timescaledb:latest-pg15
+        env:
+          POSTGRES_USER: marstek
+          POSTGRES_PASSWORD: test_password
+          POSTGRES_DB: marstek_test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+      
+      redis:
+        image: redis:7-alpine
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 6379:6379
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+      
+      - name: Install Poetry
+        uses: snok/install-poetry@v1
+        with:
+          version: latest
+          virtualenvs-create: true
+          virtualenvs-in-project: true
+      
+      - name: Generate poetry.lock
+        working-directory: ./backend
+        run: |
+          poetry lock --no-update || poetry lock
+
+      
+      - name: Install dependencies
+        working-directory: ./backend
+        run: |
+          poetry install --no-interaction --no-ansi --no-root
+      
+      - name: Run tests
+        working-directory: ./backend
+        env:
+          DATABASE_URL: postgresql+asyncpg://marstek:test_password@localhost:5432/marstek_test
+          REDIS_URL: redis://localhost:6379/0
+          APP_ENV: test
+        run: |
+          poetry run pytest --cov=app --cov-report=xml --cov-report=term-missing -v
+      
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v3
+        with:
+          file: ./backend/coverage.xml
+          flags: unittests
+          name: codecov-umbrella
+          fail_ci_if_error: false
+
+  lint:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+      
+      - name: Install Poetry
+        uses: snok/install-poetry@v1
+        with:
+          version: latest
+          virtualenvs-create: true
+          virtualenvs-in-project: true
+      
+      - name: Generate poetry.lock
+        working-directory: ./backend
+        run: |
+          poetry lock --no-update || poetry lock
+
+      
+      - name: Install dependencies
+        working-directory: ./backend
+        run: |
+          poetry install --no-interaction --no-ansi --no-root
+      
+      - name: Run black
+        working-directory: ./backend
+        run: |
+          poetry run black --check app tests
+      
+      - name: Run isort
+        working-directory: ./backend
+        run: |
+          poetry run isort --check-only app tests
+      
+      - name: Run ruff
+        working-directory: ./backend
+        run: |
+          poetry run ruff check app tests
+      
+      - name: Run mypy
+        working-directory: ./backend
+        run: |
+          poetry run mypy app --ignore-missing-imports --disable-error-code=untyped-decorator

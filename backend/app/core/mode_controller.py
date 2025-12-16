@@ -1,13 +1,20 @@
 """Mode controller for battery operation modes."""
 
+<<<<<<< HEAD
 from datetime import datetime, time
+=======
+from datetime import datetime
+>>>>>>> origin/main
 from typing import Any
 
 import structlog
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.battery_manager import BatteryManager
+<<<<<<< HEAD
 from app.core.marstek_client import MarstekAPIError
+=======
+>>>>>>> origin/main
 from app.models.marstek_api import ManualConfig
 
 logger = structlog.get_logger(__name__)
@@ -54,9 +61,13 @@ class ModeController:
         total_count = len(results)
 
         if success_count < total_count:
+<<<<<<< HEAD
             failed_batteries = [
                 bid for bid, success in results.items() if not success
             ]
+=======
+            failed_batteries = [bid for bid, success in results.items() if not success]
+>>>>>>> origin/main
 
             logger.warning(
                 "auto_mode_partial_failure",
@@ -105,7 +116,11 @@ class ModeController:
             end_time="06:00",
             week_set=127,  # Tous les jours
             power=0,  # 0W décharge
+<<<<<<< HEAD
             enable=1,
+=======
+            enable=True,
+>>>>>>> origin/main
         )
 
         mode_config = {
@@ -120,9 +135,13 @@ class ModeController:
         total_count = len(results)
 
         if success_count < total_count:
+<<<<<<< HEAD
             failed_batteries = [
                 bid for bid, success in results.items() if not success
             ]
+=======
+            failed_batteries = [bid for bid, success in results.items() if not success]
+>>>>>>> origin/main
 
             logger.warning(
                 "manual_night_partial_failure",
@@ -175,7 +194,11 @@ class ModeController:
         results = await self.switch_to_auto_mode(db)
 
         if self.notification_service:
+<<<<<<< HEAD
             success_count = sum(1 for success in results.values() if success)
+=======
+            sum(1 for success in results.values() if success)
+>>>>>>> origin/main
             await self._send_notification(
                 "⚡ Précharge Tempo activée",
                 f"Les batteries sont en mode AUTO pour précharger à {target_soc}% "
@@ -256,4 +279,7 @@ class ModeController:
                 error=str(e),
                 title=title,
             )
+<<<<<<< HEAD
 
+=======
+>>>>>>> origin/main

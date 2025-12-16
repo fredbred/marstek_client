@@ -1,9 +1,15 @@
 """Pytest configuration and fixtures."""
 
 import asyncio
+<<<<<<< HEAD
 from datetime import datetime
 from typing import AsyncGenerator
 from unittest.mock import AsyncMock, MagicMock, patch
+=======
+from collections.abc import AsyncGenerator
+from datetime import datetime
+from unittest.mock import AsyncMock, MagicMock
+>>>>>>> origin/main
 
 import pytest
 import pytest_asyncio
@@ -11,7 +17,11 @@ from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import sessionmaker
 
 from app.core.marstek_client import MarstekUDPClient
+<<<<<<< HEAD
 from app.database import Base, get_db
+=======
+from app.database import Base
+>>>>>>> origin/main
 from app.models import Battery
 
 
@@ -177,6 +187,10 @@ def override_get_db(db_session: AsyncSession):
     Yields:
         Database session generator
     """
+<<<<<<< HEAD
+=======
+
+>>>>>>> origin/main
     async def _get_db():
         yield db_session
 

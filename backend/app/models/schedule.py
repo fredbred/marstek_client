@@ -2,7 +2,11 @@
 
 from datetime import time
 
+<<<<<<< HEAD
 from sqlalchemy import String, Integer, Boolean, Time
+=======
+from sqlalchemy import Boolean, Integer, String, Time
+>>>>>>> origin/main
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.models.base import Base
@@ -15,7 +19,13 @@ class ScheduleConfig(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     name: Mapped[str] = mapped_column(
+<<<<<<< HEAD
         String(100), nullable=False, comment="Schedule name (e.g., 'Auto Day', 'Manual Night')"
+=======
+        String(100),
+        nullable=False,
+        comment="Schedule name (e.g., 'Auto Day', 'Manual Night')",
+>>>>>>> origin/main
     )
     mode_type: Mapped[str] = mapped_column(
         String(20),
@@ -50,4 +60,7 @@ class ScheduleConfig(Base):
             f"<ScheduleConfig(id={self.id}, name={self.name}, "
             f"mode_type={self.mode_type}, start={self.start_time}, end={self.end_time})>"
         )
+<<<<<<< HEAD
 
+=======
+>>>>>>> origin/main

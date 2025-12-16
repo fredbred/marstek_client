@@ -1,10 +1,15 @@
 """API routes for mode management."""
 
 import structlog
+<<<<<<< HEAD
 from typing import Any
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
+=======
+from fastapi import APIRouter, Depends, HTTPException, Request, status
+from slowapi import Limiter
+>>>>>>> origin/main
 from slowapi.util import get_remote_address
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -42,7 +47,11 @@ async def get_current_modes(
     """
     try:
         # Récupérer toutes les batteries
+<<<<<<< HEAD
         stmt = select(Battery).where(Battery.is_active == True)
+=======
+        stmt = select(Battery).where(Battery.is_active)
+>>>>>>> origin/main
         result = await db.execute(stmt)
         batteries = result.scalars().all()
 
@@ -104,7 +113,15 @@ async def set_auto_mode(
             logger.info("auto_mode_set_success", battery_count=total_count)
         else:
             message = f"Partial success: {success_count}/{total_count} batteries switched to AUTO mode"
+<<<<<<< HEAD
             logger.warning("auto_mode_set_partial", success_count=success_count, total_count=total_count)
+=======
+            logger.warning(
+                "auto_mode_set_partial",
+                success_count=success_count,
+                total_count=total_count,
+            )
+>>>>>>> origin/main
 
         return MessageResponse(message=message, success=success_count == total_count)
 
@@ -143,7 +160,11 @@ async def set_manual_mode(
             end_time=config.end_time,
             week_set=config.week_set,
             power=config.power,
+<<<<<<< HEAD
             enable=config.enable,
+=======
+            enable=bool(config.enable),
+>>>>>>> origin/main
         )
 
         mode_config = {
@@ -161,7 +182,15 @@ async def set_manual_mode(
             logger.info("manual_mode_set_success", battery_count=total_count)
         else:
             message = f"Partial success: {success_count}/{total_count} batteries switched to MANUAL mode"
+<<<<<<< HEAD
             logger.warning("manual_mode_set_partial", success_count=success_count, total_count=total_count)
+=======
+            logger.warning(
+                "manual_mode_set_partial",
+                success_count=success_count,
+                total_count=total_count,
+            )
+>>>>>>> origin/main
 
         return MessageResponse(message=message, success=success_count == total_count)
 

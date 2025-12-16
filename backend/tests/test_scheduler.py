@@ -1,6 +1,9 @@
 """Tests for scheduler system."""
 
+<<<<<<< HEAD
 from datetime import datetime
+=======
+>>>>>>> origin/main
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -13,7 +16,11 @@ from app.scheduler.jobs import (
     job_switch_to_auto,
     job_switch_to_manual_night,
 )
+<<<<<<< HEAD
 from app.scheduler.scheduler import get_scheduler, init_scheduler, shutdown_scheduler
+=======
+from app.scheduler.scheduler import init_scheduler, shutdown_scheduler
+>>>>>>> origin/main
 
 
 @pytest.fixture
@@ -53,7 +60,13 @@ async def test_job_switch_to_auto(db_session) -> None:
     """Test job_switch_to_auto execution."""
     with patch("app.scheduler.jobs.ModeController") as mock_controller_class:
         mock_controller = MagicMock()
+<<<<<<< HEAD
         mock_controller.switch_to_auto_mode = AsyncMock(return_value={1: True, 2: True, 3: True})
+=======
+        mock_controller.switch_to_auto_mode = AsyncMock(
+            return_value={1: True, 2: True, 3: True}
+        )
+>>>>>>> origin/main
         mock_controller_class.return_value = mock_controller
 
         await job_switch_to_auto()
@@ -66,17 +79,27 @@ async def test_job_switch_to_manual_night(db_session) -> None:
     """Test job_switch_to_manual_night execution."""
     with patch("app.scheduler.jobs.ModeController") as mock_controller_class:
         mock_controller = MagicMock()
+<<<<<<< HEAD
         mock_controller.switch_to_manual_night = AsyncMock(return_value={1: True, 2: True, 3: True})
+=======
+        mock_controller.switch_to_manual_night = AsyncMock(
+            return_value={1: True, 2: True, 3: True}
+        )
+>>>>>>> origin/main
         mock_controller_class.return_value = mock_controller
 
         await job_switch_to_manual_night()
 
+<<<<<<< HEAD
         mock_controller.switch_to_manual_night.assert_called_once()
 
+=======
+>>>>>>> origin/main
 
 @pytest.mark.asyncio
 async def test_job_check_tempo_tomorrow() -> None:
     """Test job_check_tempo_tomorrow execution."""
+<<<<<<< HEAD
     with patch("app.scheduler.jobs.TempoService") as mock_service_class:
         mock_service = MagicMock()
         mock_service.should_activate_precharge = AsyncMock(return_value=True)
@@ -87,6 +110,17 @@ async def test_job_check_tempo_tomorrow() -> None:
 
         mock_service.should_activate_precharge.assert_called_once()
 
+=======
+    with patch("app.scheduler.jobs.ModeController") as mock_mode_controller_class:
+        mock_mode_controller = MagicMock()
+        mock_mode_controller.activate_tempo_precharge = AsyncMock(
+            return_value={1: True, 2: True, 3: True}
+        )
+        mock_mode_controller_class.return_value = mock_mode_controller
+
+        await job_check_tempo_tomorrow()
+
+>>>>>>> origin/main
 
 @pytest.mark.asyncio
 async def test_job_monitor_batteries(db_session) -> None:
@@ -113,9 +147,18 @@ async def test_job_health_check() -> None:
         pytest.fail(f"job_health_check raised {e}")
 
 
+<<<<<<< HEAD
 @pytest.mark.asyncio
 async def test_scheduler_persistence() -> None:
     """Test that scheduler jobs persist across restarts."""
+=======
+async def test_scheduler_persistence() -> None:
+    """Test that scheduler jobs persist across restarts."""
+    from app.scheduler.scheduler import shutdown_scheduler
+
+    await shutdown_scheduler()  # Reset scheduler
+
+>>>>>>> origin/main
     try:
         # Initialize scheduler
         scheduler1 = init_scheduler()
@@ -141,10 +184,23 @@ async def test_scheduler_persistence() -> None:
 
     finally:
         await shutdown_scheduler()
+<<<<<<< HEAD
+=======
+    from app.scheduler.scheduler import shutdown_scheduler
+
+    await shutdown_scheduler()  # Reset scheduler
+>>>>>>> origin/main
 
 
 @pytest.mark.asyncio
 async def test_scheduler_job_registration() -> None:
+<<<<<<< HEAD
+=======
+    from app.scheduler.scheduler import shutdown_scheduler
+
+    await shutdown_scheduler()  # Reset scheduler
+
+>>>>>>> origin/main
     """Test that all jobs are registered."""
     try:
         scheduler = init_scheduler()
@@ -154,6 +210,7 @@ async def test_scheduler_job_registration() -> None:
         job_ids = [job.id for job in jobs]
 
         # Check that expected jobs are registered
+<<<<<<< HEAD
         expected_jobs = [
             "switch_to_auto",
             "switch_to_manual_night",
@@ -161,6 +218,8 @@ async def test_scheduler_job_registration() -> None:
             "monitor_batteries",
             "health_check",
         ]
+=======
+>>>>>>> origin/main
 
         # At least some of these should be present
         assert len(job_ids) > 0

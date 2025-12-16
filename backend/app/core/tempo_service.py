@@ -70,9 +70,13 @@ class TempoService:
     async def _get_redis(self) -> aioredis.Redis:
         """Get or create Redis client."""
         if self._redis is None:
+<<<<<<< HEAD
             self._redis = aioredis.from_url(
                 settings.redis.url, decode_responses=True
             )
+=======
+            self._redis = aioredis.from_url(settings.redis.url, decode_responses=True)
+>>>>>>> origin/main
         return self._redis
 
     async def _get_http_client(self) -> httpx.AsyncClient:
@@ -107,7 +111,11 @@ class TempoService:
             TTL in seconds
         """
         now = datetime.now()
+<<<<<<< HEAD
         target_datetime = datetime.combine(target_date, datetime.min.time())
+=======
+        datetime.combine(target_date, datetime.min.time())
+>>>>>>> origin/main
 
         if target_date == now.date():
             # Cache jusqu'à minuit
@@ -177,7 +185,11 @@ class TempoService:
             response = await http_client.get(url)
             response.raise_for_status()
             data = response.json()
+<<<<<<< HEAD
             
+=======
+
+>>>>>>> origin/main
             # Parser: {"dateJour": "YYYY-MM-DD", "codeJour": 1|2|3, "libCouleur": "Bleu|Blanc|Rouge"}
             date_str = target_date.isoformat()
             day_data = next((d for d in data if d.get("dateJour") == date_str), None)
@@ -224,7 +236,15 @@ class TempoService:
                 "tempo_api_error",
                 date=target_date.isoformat(),
                 error=str(e),
+<<<<<<< HEAD
                 status_code=getattr(e.response, "status_code", None) if hasattr(e, "response") else None,
+=======
+                status_code=(
+                    getattr(e.response, "status_code", None)
+                    if hasattr(e, "response")
+                    else None
+                ),
+>>>>>>> origin/main
             )
             return TempoColor.UNKNOWN
         except Exception as e:
@@ -236,7 +256,13 @@ class TempoService:
             )
             return TempoColor.UNKNOWN
 
+<<<<<<< HEAD
     def _parse_api_response(self, data: dict[str, Any], target_date: date) -> TempoColor:
+=======
+    def _parse_api_response(
+        self, data: dict[str, Any], target_date: date
+    ) -> TempoColor:
+>>>>>>> origin/main
         """Parse la réponse de l'API RTE.
 
         Args:
@@ -297,7 +323,11 @@ class TempoService:
             True si précharge nécessaire, False sinon
         """
         today = date.today()
+<<<<<<< HEAD
         tomorrow = today + timedelta(days=1)
+=======
+        today + timedelta(days=1)
+>>>>>>> origin/main
 
         today_color = await self.get_tempo_color(today)
         tomorrow_color = await self.get_tomorrow_color()
@@ -334,7 +364,11 @@ class TempoService:
             response = await http_client.get(url)
             response.raise_for_status()
             data = response.json()
+<<<<<<< HEAD
             
+=======
+
+>>>>>>> origin/main
             # Compter les jours restants par couleur
             today = date.today()
             remaining = {"BLUE": 0, "WHITE": 0, "RED": 0}
@@ -380,4 +414,7 @@ class TempoService:
     async def __aexit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> None:
         """Context manager exit."""
         await self.close()
+<<<<<<< HEAD
 
+=======
+>>>>>>> origin/main
