@@ -27,11 +27,11 @@ class RedisSettings(BaseSettings):
 class BatterySettings(BaseSettings):
     """Battery configuration."""
 
-    battery_1_ip: str = Field(alias="BATTERY_1_IP")
+    battery_1_ip: str = Field(default="", alias="BATTERY_1_IP")
     battery_1_port: int = Field(default=30001, alias="BATTERY_1_PORT")
-    battery_2_ip: str = Field(alias="BATTERY_2_IP")
+    battery_2_ip: str = Field(default="", alias="BATTERY_2_IP")
     battery_2_port: int = Field(default=30002, alias="BATTERY_2_PORT")
-    battery_3_ip: str = Field(alias="BATTERY_3_IP")
+    battery_3_ip: str = Field(default="", alias="BATTERY_3_IP")
     battery_3_port: int = Field(default=30003, alias="BATTERY_3_PORT")
 
     model_config = SettingsConfigDict(case_sensitive=False)
