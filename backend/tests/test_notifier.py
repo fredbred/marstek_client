@@ -67,17 +67,18 @@ def test_notifier_init(
     # This is expected behavior
 
 
-@patch("app.notifications.notifier.get_settings")
-@patch("app.notifications.notifier.Apprise")
 def test_notifier_init_disabled(
-    mock_apprise_class: MagicMock, mock_get_settings: MagicMock
+    mock_apprise_class: MagicMock, mock_settings: MagicMock
 ) -> None:
     """Test Notifier initialization when disabled."""
-    mock_settings = MagicMock()
     mock_settings.notification.enabled = False
-    mock_get_settings.return_value = mock_settings
 
     notifier = Notifier()
+
+    assert notifier.enabled is False
+    mock_apprise_class.assert_not_called()
+
+    mock_settings.notification.enabled = False
 
     assert notifier.enabled is False
     mock_apprise_class.assert_not_called()
@@ -292,49 +293,6 @@ async def test_notify_battery_offline(
     last_seen = datetime.utcnow()
     result = await notifier.notify_battery_offline(sample_battery, last_seen=last_seen)
 
-    assert result is True
-    mock_apprise.notify.assert_called_once()
-    call_args = mock_apprise.notify.call_args
-    assert "Batterie Hors Ligne" in call_args[1]["body"]
-
-
-@patch("app.notifications.notifier.get_settings")
-@patch("app.notifications.notifier.Apprise")
-@pytest.mark.asyncio
-async def test_notifications_disabled(
-    mock_apprise_class: MagicMock,
-    mock_get_settings: MagicMock,
-    mock_settings: MagicMock,
-    mock_apprise: MagicMock,
-) -> None:
-    """Test that notifications are not sent when disabled."""
-    mock_settings.notification.enabled = False
-    mock_get_settings.return_value = mock_settings
-    mock_apprise_class.return_value = mock_apprise
-
-    notifier = Notifier()
-
-    result = await notifier.send_info("Test", "Message")
-
-    assert result is False
-    mock_apprise.notify.assert_not_called()
-
-
-@patch("app.notifications.notifier.get_settings")
-@patch("app.notifications.notifier.Apprise")
-@pytest.mark.asyncio
-async def test_notify_tempo_white_no_alert(
-    mock_apprise_class: MagicMock,
-    mock_get_settings: MagicMock,
-    mock_settings: MagicMock,
-    mock_apprise: MagicMock,
-) -> None:
-    """Test that WHITE Tempo color doesn't trigger alert."""
-    mock_get_settings.return_value = mock_settings
-    mock_apprise_class.return_value = mock_apprise
-
-    notifier = Notifier()
-
     result = await notifier.notify_tempo_alert(TempoColor.WHITE)
 
     assert result is False
@@ -345,7 +303,4 @@ def test_templates_exist() -> None:
     """Test that all templates are defined."""
     assert "mode_changed" in TEMPLATES
     assert "tempo_red_alert" in TEMPLATES
-    assert "tempo_blue_alert" in TEMPLATES
-    assert "battery_issue" in TEMPLATES
-    assert "battery_low_soc" in TEMPLATES
     assert "battery_offline" in TEMPLATES

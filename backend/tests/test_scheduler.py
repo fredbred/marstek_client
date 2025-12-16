@@ -1,7 +1,5 @@
 """Tests for scheduler system."""
 
-from unittest.mock import patch, MagicMock, AsyncMock
-
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -119,12 +117,7 @@ async def test_scheduler_persistence() -> None:
     """Test that scheduler jobs persist across restarts."""
     from app.scheduler.scheduler import shutdown_scheduler
 
-    shutdown_scheduler()  # Reset scheduler
-
-    """Test that scheduler jobs persist across restarts."""
-    from app.scheduler.scheduler import shutdown_scheduler
-
-    shutdown_scheduler()  # Reset scheduler
+    await shutdown_scheduler()  # Reset scheduler
 
     try:
         # Initialize scheduler
@@ -158,6 +151,10 @@ async def test_scheduler_persistence() -> None:
 
 @pytest.mark.asyncio
 async def test_scheduler_job_registration() -> None:
+    from app.scheduler.scheduler import shutdown_scheduler
+
+    await shutdown_scheduler()  # Reset scheduler
+
     """Test that all jobs are registered."""
     try:
         scheduler = init_scheduler()
