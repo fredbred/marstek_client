@@ -1,0 +1,22 @@
+# Configuration Cloudflare Tunnel pour Marstek Automation
+# 
+# Instructions:
+# 1. Remplacer <TUNNEL_ID> par l'ID de votre tunnel (obtenu via: cloudflared tunnel list)
+# 2. Remplacer ton-domaine.com par votre domaine
+# 3. Copier ce fichier vers /etc/cloudflared/config.yml
+# 4. Ajuster les ports si nécessaire (8501 pour Streamlit, 8000 pour API)
+
+tunnel: <TUNNEL_ID>
+credentials-file: /root/.cloudflared/<TUNNEL_ID>.json
+
+ingress:
+  # Interface Streamlit (UI)
+  - hostname: marstek.ton-domaine.com
+    service: http://localhost:8501
+  
+  # API Backend (FastAPI)
+  - hostname: api-marstek.ton-domaine.com
+    service: http://localhost:8000
+  
+  # Catch-all (doit être en dernier)
+  - service: http_status:404

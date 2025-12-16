@@ -1,0 +1,67 @@
+# Configuration Marstek Automation
+
+# Batteries Marstek
+# Port UDP: configuré individuellement dans l'app Marstek pour chaque device
+# Recommandé: utiliser des ports différents (30001, 30002, 30003) pour éviter les conflits
+# Ports recommandés: entre 49152 et 65535
+batteries:
+  - id: "battery_1"
+    name: "Batterie Salon"
+    ip: "192.168.1.100"
+    port: 30001  # À configurer dans l'app Marstek pour ce device
+  - id: "battery_2"
+    name: "Batterie Garage"
+    ip: "192.168.1.101"
+    port: 30002  # À configurer dans l'app Marstek pour ce device
+  - id: "battery_3"
+    name: "Batterie Cave"
+    ip: "192.168.1.102"
+    port: 30003  # À configurer dans l'app Marstek pour ce device
+
+# Modes de fonctionnement
+modes:
+  auto:
+    start_hour: 6
+    end_hour: 22
+  manual:
+    start_hour: 22
+    end_hour: 6
+
+# API Tempo RTE
+tempo:
+  enabled: true
+  api_url: "https://www.api-rte.com/application/json"
+  contract_number: ""  # À remplir
+  timeout: 10
+
+# Telegram
+telegram:
+  enabled: true
+  bot_token: ""  # À remplir
+  chat_id: ""    # À remplir
+
+# Database
+database:
+  host: "postgres"
+  port: 5432
+  user: "marstek"
+  password: ""  # À remplir ou via env var
+  database: "marstek_db"
+
+# Redis
+redis:
+  host: "redis"
+  port: 6379
+  db: 0
+
+# Logging
+logging:
+  level: "INFO"
+  format: "json"
+  file: "logs/marstek.log"
+
+# Scheduler
+scheduler:
+  timezone: "Europe/Paris"
+  max_workers: 4
+
