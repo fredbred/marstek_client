@@ -105,7 +105,7 @@ class ManualConfig(BaseModel):
         le=127,
     )
     power: int = Field(description="Setting power [W]", ge=0)
-    enable: Literal[0, 1] = Field(description="ON: 1; OFF: 0")
+    enable: bool = Field(description="ON: 1; OFF: 0")
 
 
 class PassiveConfig(BaseModel):
