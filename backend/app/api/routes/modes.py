@@ -104,7 +104,11 @@ async def set_auto_mode(
             logger.info("auto_mode_set_success", battery_count=total_count)
         else:
             message = f"Partial success: {success_count}/{total_count} batteries switched to AUTO mode"
-            logger.warning("auto_mode_set_partial", success_count=success_count, total_count=total_count)
+            logger.warning(
+                "auto_mode_set_partial",
+                success_count=success_count,
+                total_count=total_count,
+            )
 
         return MessageResponse(message=message, success=success_count == total_count)
 
@@ -161,7 +165,11 @@ async def set_manual_mode(
             logger.info("manual_mode_set_success", battery_count=total_count)
         else:
             message = f"Partial success: {success_count}/{total_count} batteries switched to MANUAL mode"
-            logger.warning("manual_mode_set_partial", success_count=success_count, total_count=total_count)
+            logger.warning(
+                "manual_mode_set_partial",
+                success_count=success_count,
+                total_count=total_count,
+            )
 
         return MessageResponse(message=message, success=success_count == total_count)
 

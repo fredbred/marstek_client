@@ -111,9 +111,7 @@ class BatteryManager:
         logger.info("battery_discovery_complete", batteries_found=len(registered))
         return registered
 
-    async def get_all_status(
-        self, db: AsyncSession
-    ) -> dict[int, dict[str, Any]]:
+    async def get_all_status(self, db: AsyncSession) -> dict[int, dict[str, Any]]:
         """Récupère l'état des 3 batteries en parallèle.
 
         Args:
@@ -156,9 +154,7 @@ class BatteryManager:
 
         return status_dict
 
-    async def _get_single_battery_status(
-        self, battery: Battery
-    ) -> dict[str, Any]:
+    async def _get_single_battery_status(self, battery: Battery) -> dict[str, Any]:
         """Récupère le status d'une seule batterie.
 
         Args:
@@ -248,7 +244,9 @@ class BatteryManager:
         tasks = []
         for battery in batteries:
             if mode == "auto":
-                tasks.append(self.client.set_mode_auto(battery.ip_address, battery.udp_port))
+                tasks.append(
+                    self.client.set_mode_auto(battery.ip_address, battery.udp_port)
+                )
             elif mode == "manual":
                 manual_config = mode_config.get("config")
                 if not manual_config:
@@ -361,4 +359,3 @@ class BatteryManager:
         except Exception as e:
             logger.error("status_log_commit_failed", error=str(e))
             await db.rollback()
-

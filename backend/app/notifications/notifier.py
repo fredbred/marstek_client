@@ -87,7 +87,10 @@ class Notifier:
 
         # Add Telegram notification if configured
         if settings.notification.telegram_enabled:
-            if settings.notification.telegram_bot_token and settings.notification.telegram_chat_id:
+            if (
+                settings.notification.telegram_bot_token
+                and settings.notification.telegram_chat_id
+            ):
                 telegram_url = (
                     f"tgram://{settings.notification.telegram_bot_token}/"
                     f"{settings.notification.telegram_chat_id}"
@@ -329,7 +332,10 @@ class Notifier:
             result = await self.send_warning("Batterie Faible", message.strip())
 
             logger.info(
-                "battery_low_soc_notified", battery_id=battery.id, soc=soc, threshold=threshold
+                "battery_low_soc_notified",
+                battery_id=battery.id,
+                soc=soc,
+                threshold=threshold,
             )
 
             return result

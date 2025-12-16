@@ -46,7 +46,9 @@ app.add_middleware(
 @app.on_event("startup")
 async def startup_event() -> None:
     """Startup event handler."""
-    logger.info("application_starting", app_name=settings.app_name, env=settings.app_env)
+    logger.info(
+        "application_starting", app_name=settings.app_name, env=settings.app_env
+    )
 
     # Initialiser la base de données
     try:

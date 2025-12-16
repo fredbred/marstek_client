@@ -9,7 +9,12 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.dependencies import get_db_session
-from app.api.schemas import MessageResponse, ScheduleCreate, ScheduleResponse, ScheduleUpdate
+from app.api.schemas import (
+    MessageResponse,
+    ScheduleCreate,
+    ScheduleResponse,
+    ScheduleUpdate,
+)
 from app.models import ScheduleConfig
 
 logger = structlog.get_logger(__name__)
@@ -126,7 +131,9 @@ async def update_schedule(
         await db.commit()
         await db.refresh(schedule)
 
-        logger.info("schedule_updated", schedule_id=schedule_id, fields=list(update_data.keys()))
+        logger.info(
+            "schedule_updated", schedule_id=schedule_id, fields=list(update_data.keys())
+        )
 
         return ScheduleResponse.model_validate(schedule)
 

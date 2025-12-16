@@ -267,4 +267,3 @@ async def job_health_check() -> None:
                 exc_info=True,
             )
             await db.rollback()
-

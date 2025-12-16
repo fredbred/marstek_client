@@ -177,6 +177,7 @@ def override_get_db(db_session: AsyncSession):
     Yields:
         Database session generator
     """
+
     async def _get_db():
         yield db_session
 

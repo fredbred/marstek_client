@@ -207,7 +207,9 @@ class MarstekUDPClient:
                     method=command_dict.get("method"),
                     attempt=attempt,
                     error=str(e),
-                    response_preview=response_data[:100] if "response_data" in locals() else None,
+                    response_preview=(
+                        response_data[:100] if "response_data" in locals() else None
+                    ),
                 )
                 sock.close()
 
@@ -328,7 +330,9 @@ class MarstekUDPClient:
         logger.info("marstek_discovery_complete", devices_found=len(discovered))
         return discovered
 
-    async def get_device_info(self, ip: str, port: int, ble_mac: str = "0") -> DeviceInfo:
+    async def get_device_info(
+        self, ip: str, port: int, ble_mac: str = "0"
+    ) -> DeviceInfo:
         """Get device information.
 
         Args:
@@ -350,7 +354,9 @@ class MarstekUDPClient:
         response = await self.send_command(ip, port, command)
 
         if "result" not in response:
-            raise MarstekAPIError("No result in response", method="Marstek.GetDevice", response=response)
+            raise MarstekAPIError(
+                "No result in response", method="Marstek.GetDevice", response=response
+            )
 
         result = response["result"]
         return DeviceInfo(
@@ -362,7 +368,9 @@ class MarstekUDPClient:
             ip=result.get("ip", ""),
         )
 
-    async def get_battery_status(self, ip: str, port: int, instance_id: int | None = None) -> BatteryStatus:
+    async def get_battery_status(
+        self, ip: str, port: int, instance_id: int | None = None
+    ) -> BatteryStatus:
         """Get battery status.
 
         Args:
@@ -387,7 +395,9 @@ class MarstekUDPClient:
         response = await self.send_command(ip, port, command)
 
         if "result" not in response:
-            raise MarstekAPIError("No result in response", method="Bat.GetStatus", response=response)
+            raise MarstekAPIError(
+                "No result in response", method="Bat.GetStatus", response=response
+            )
 
         result = response["result"]
 
@@ -411,7 +421,9 @@ class MarstekUDPClient:
             rated_capacity=result.get("rated_capacity"),
         )
 
-    async def get_es_status(self, ip: str, port: int, instance_id: int | None = None) -> ESStatus:
+    async def get_es_status(
+        self, ip: str, port: int, instance_id: int | None = None
+    ) -> ESStatus:
         """Get Energy System status.
 
         Args:
@@ -436,12 +448,16 @@ class MarstekUDPClient:
         response = await self.send_command(ip, port, command)
 
         if "result" not in response:
-            raise MarstekAPIError("No result in response", method="ES.GetStatus", response=response)
+            raise MarstekAPIError(
+                "No result in response", method="ES.GetStatus", response=response
+            )
 
         result = response["result"]
         return ESStatus(**result)
 
-    async def get_current_mode(self, ip: str, port: int, instance_id: int | None = None) -> ModeInfo:
+    async def get_current_mode(
+        self, ip: str, port: int, instance_id: int | None = None
+    ) -> ModeInfo:
         """Get current device mode.
 
         Args:
@@ -466,7 +482,9 @@ class MarstekUDPClient:
         response = await self.send_command(ip, port, command)
 
         if "result" not in response:
-            raise MarstekAPIError("No result in response", method="ES.GetMode", response=response)
+            raise MarstekAPIError(
+                "No result in response", method="ES.GetMode", response=response
+            )
 
         result = response["result"]
 
@@ -486,7 +504,9 @@ class MarstekUDPClient:
             bat_soc=result.get("bat_soc"),
         )
 
-    async def set_mode_auto(self, ip: str, port: int, instance_id: int | None = None) -> bool:
+    async def set_mode_auto(
+        self, ip: str, port: int, instance_id: int | None = None
+    ) -> bool:
         """Set device to Auto mode.
 
         Args:
@@ -517,7 +537,9 @@ class MarstekUDPClient:
         response = await self.send_command(ip, port, command)
 
         if "result" not in response:
-            raise MarstekAPIError("No result in response", method="ES.SetMode", response=response)
+            raise MarstekAPIError(
+                "No result in response", method="ES.SetMode", response=response
+            )
 
         result = SetModeResult(**response["result"])
         return result.set_result
@@ -556,8 +578,9 @@ class MarstekUDPClient:
         response = await self.send_command(ip, port, command)
 
         if "result" not in response:
-            raise MarstekAPIError("No result in response", method="ES.SetMode", response=response)
+            raise MarstekAPIError(
+                "No result in response", method="ES.SetMode", response=response
+            )
 
         result = SetModeResult(**response["result"])
         return result.set_result
-

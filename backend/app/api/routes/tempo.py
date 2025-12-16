@@ -127,9 +127,7 @@ async def get_tempo_calendar(
         current_date = start_date
         while current_date <= end_date:
             color = await tempo_service.get_tempo_color(current_date)
-            calendar.append(
-                TempoCalendarResponse(date=current_date, color=color.value)
-            )
+            calendar.append(TempoCalendarResponse(date=current_date, color=color.value))
             current_date += timedelta(days=1)
 
         logger.info(

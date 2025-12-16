@@ -15,7 +15,9 @@ class ScheduleConfig(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     name: Mapped[str] = mapped_column(
-        String(100), nullable=False, comment="Schedule name (e.g., 'Auto Day', 'Manual Night')"
+        String(100),
+        nullable=False,
+        comment="Schedule name (e.g., 'Auto Day', 'Manual Night')",
     )
     mode_type: Mapped[str] = mapped_column(
         String(20),
@@ -50,4 +52,3 @@ class ScheduleConfig(Base):
             f"<ScheduleConfig(id={self.id}, name={self.name}, "
             f"mode_type={self.mode_type}, start={self.start_time}, end={self.end_time})>"
         )
-

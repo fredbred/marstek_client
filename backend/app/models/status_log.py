@@ -65,4 +65,3 @@ class BatteryStatusLog(Base):
             f"<BatteryStatusLog(battery_id={self.battery_id}, "
             f"timestamp={self.timestamp}, soc={self.soc}%)>"
         )
-

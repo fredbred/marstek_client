@@ -24,21 +24,29 @@ class BatteryStatus(BaseModel):
     charg_flag: bool = Field(description="Charging permission flag")
     dischrg_flag: bool = Field(description="Discharge permission flag")
     bat_temp: float | None = Field(default=None, description="Battery temperature [°C]")
-    bat_capacity: float | None = Field(default=None, description="Battery remaining capacity [Wh]")
-    rated_capacity: float | None = Field(default=None, description="Battery rated capacity [Wh]")
+    bat_capacity: float | None = Field(
+        default=None, description="Battery remaining capacity [Wh]"
+    )
+    rated_capacity: float | None = Field(
+        default=None, description="Battery rated capacity [Wh]"
+    )
 
 
 class ESStatus(BaseModel):
     """Energy System status from ES.GetStatus."""
 
     id: int | None = Field(default=None, description="Instance ID")
-    bat_soc: int | None = Field(default=None, description="Total battery SOC [%]", ge=0, le=100)
+    bat_soc: int | None = Field(
+        default=None, description="Total battery SOC [%]", ge=0, le=100
+    )
     bat_cap: int | None = Field(default=None, description="Total battery capacity [Wh]")
     pv_power: float | None = Field(default=None, description="Solar charging power [W]")
     ongrid_power: float | None = Field(default=None, description="Grid-tied power [W]")
     offgrid_power: float | None = Field(default=None, description="Off-grid power [W]")
     bat_power: float | None = Field(default=None, description="Battery power [W]")
-    total_pv_energy: float | None = Field(default=None, description="Total solar energy generated [Wh]")
+    total_pv_energy: float | None = Field(
+        default=None, description="Total solar energy generated [Wh]"
+    )
     total_grid_output_energy: float | None = Field(
         default=None, description="Total grid output energy [Wh]"
     )
@@ -60,7 +68,9 @@ class ModeInfo(BaseModel):
     )
     ongrid_power: float | None = Field(default=None, description="Grid-tied power [W]")
     offgrid_power: float | None = Field(default=None, description="Off-grid power [W]")
-    bat_soc: int | None = Field(default=None, description="Battery SOC [%]", ge=0, le=100)
+    bat_soc: int | None = Field(
+        default=None, description="Battery SOC [%]", ge=0, le=100
+    )
 
 
 class AutoConfig(BaseModel):
@@ -78,12 +88,16 @@ class AIConfig(BaseModel):
 class ManualConfig(BaseModel):
     """Configuration for Manual mode."""
 
-    time_num: int = Field(description="Time period serial number, Venus C/E supports 0-9", ge=0, le=9)
+    time_num: int = Field(
+        description="Time period serial number, Venus C/E supports 0-9", ge=0, le=9
+    )
     start_time: str = Field(
-        description="Start time, hours:minutes [hh:mm]", pattern=r"^([0-1][0-9]|2[0-3]):[0-5][0-9]$"
+        description="Start time, hours:minutes [hh:mm]",
+        pattern=r"^([0-1][0-9]|2[0-3]):[0-5][0-9]$",
     )
     end_time: str = Field(
-        description="End time, hours:minutes [hh:mm]", pattern=r"^([0-1][0-9]|2[0-3]):[0-5][0-9]$"
+        description="End time, hours:minutes [hh:mm]",
+        pattern=r"^([0-1][0-9]|2[0-3]):[0-5][0-9]$",
     )
     week_set: int = Field(
         description="Week setting: byte 8 bits, low 7 bits effective. 1=Monday, 3=Mon+Tue, 127=all week",
@@ -107,9 +121,15 @@ class ModeConfig(BaseModel):
     mode: Literal["Auto", "AI", "Manual", "Passive"] = Field(
         description="Device power generation mode"
     )
-    auto_cfg: AutoConfig | None = Field(default=None, description="Configuration for Auto mode")
-    ai_cfg: AIConfig | None = Field(default=None, description="Configuration for AI mode")
-    manual_cfg: ManualConfig | None = Field(default=None, description="Configuration for Manual mode")
+    auto_cfg: AutoConfig | None = Field(
+        default=None, description="Configuration for Auto mode"
+    )
+    ai_cfg: AIConfig | None = Field(
+        default=None, description="Configuration for AI mode"
+    )
+    manual_cfg: ManualConfig | None = Field(
+        default=None, description="Configuration for Manual mode"
+    )
     passive_cfg: PassiveConfig | None = Field(
         default=None, description="Configuration for Passive mode"
     )
@@ -119,5 +139,6 @@ class SetModeResult(BaseModel):
     """Result from ES.SetMode."""
 
     id: int = Field(description="Instance ID")
-    set_result: bool = Field(description="true: succeeded in setting; false: failed in setting")
-
+    set_result: bool = Field(
+        description="true: succeeded in setting; false: failed in setting"
+    )

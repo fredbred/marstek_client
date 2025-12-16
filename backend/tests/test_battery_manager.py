@@ -195,9 +195,7 @@ async def test_get_all_status_partial_failure(
     mock_db.execute.return_value = result_mock
 
     # First battery succeeds, second fails
-    bat_status = BatteryStatus(
-        id=0, soc=98, charg_flag=True, dischrg_flag=True
-    )
+    bat_status = BatteryStatus(id=0, soc=98, charg_flag=True, dischrg_flag=True)
     es_status = ESStatus(id=0, bat_soc=98)
     mode_info = ModeInfo(id=0, mode="Auto")
 
@@ -306,4 +304,3 @@ async def test_log_status_to_db(
     # Verify logs were created
     assert mock_db.add.call_count == 2  # One log per battery
     mock_db.commit.assert_called_once()
-

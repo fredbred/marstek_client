@@ -70,9 +70,7 @@ class TempoService:
     async def _get_redis(self) -> aioredis.Redis:
         """Get or create Redis client."""
         if self._redis is None:
-            self._redis = aioredis.from_url(
-                settings.redis.url, decode_responses=True
-            )
+            self._redis = aioredis.from_url(settings.redis.url, decode_responses=True)
         return self._redis
 
     async def _get_http_client(self) -> httpx.AsyncClient:
@@ -177,7 +175,7 @@ class TempoService:
             response = await http_client.get(url)
             response.raise_for_status()
             data = response.json()
-            
+
             # Parser: {"dateJour": "YYYY-MM-DD", "codeJour": 1|2|3, "libCouleur": "Bleu|Blanc|Rouge"}
             date_str = target_date.isoformat()
             day_data = next((d for d in data if d.get("dateJour") == date_str), None)
@@ -224,7 +222,11 @@ class TempoService:
                 "tempo_api_error",
                 date=target_date.isoformat(),
                 error=str(e),
-                status_code=getattr(e.response, "status_code", None) if hasattr(e, "response") else None,
+                status_code=(
+                    getattr(e.response, "status_code", None)
+                    if hasattr(e, "response")
+                    else None
+                ),
             )
             return TempoColor.UNKNOWN
         except Exception as e:
@@ -236,7 +238,9 @@ class TempoService:
             )
             return TempoColor.UNKNOWN
 
-    def _parse_api_response(self, data: dict[str, Any], target_date: date) -> TempoColor:
+    def _parse_api_response(
+        self, data: dict[str, Any], target_date: date
+    ) -> TempoColor:
         """Parse la réponse de l'API RTE.
 
         Args:
@@ -334,7 +338,7 @@ class TempoService:
             response = await http_client.get(url)
             response.raise_for_status()
             data = response.json()
-            
+
             # Compter les jours restants par couleur
             today = date.today()
             remaining = {"BLUE": 0, "WHITE": 0, "RED": 0}
@@ -380,4 +384,3 @@ class TempoService:
     async def __aexit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> None:
         """Context manager exit."""
         await self.close()
-

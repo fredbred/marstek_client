@@ -53,7 +53,9 @@ async def test_job_switch_to_auto(db_session) -> None:
     """Test job_switch_to_auto execution."""
     with patch("app.scheduler.jobs.ModeController") as mock_controller_class:
         mock_controller = MagicMock()
-        mock_controller.switch_to_auto_mode = AsyncMock(return_value={1: True, 2: True, 3: True})
+        mock_controller.switch_to_auto_mode = AsyncMock(
+            return_value={1: True, 2: True, 3: True}
+        )
         mock_controller_class.return_value = mock_controller
 
         await job_switch_to_auto()
@@ -66,7 +68,9 @@ async def test_job_switch_to_manual_night(db_session) -> None:
     """Test job_switch_to_manual_night execution."""
     with patch("app.scheduler.jobs.ModeController") as mock_controller_class:
         mock_controller = MagicMock()
-        mock_controller.switch_to_manual_night = AsyncMock(return_value={1: True, 2: True, 3: True})
+        mock_controller.switch_to_manual_night = AsyncMock(
+            return_value={1: True, 2: True, 3: True}
+        )
         mock_controller_class.return_value = mock_controller
 
         await job_switch_to_manual_night()

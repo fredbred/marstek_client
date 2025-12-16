@@ -48,10 +48,16 @@ class BatterySettings(BaseSettings):
 class SchedulerSettings(BaseSettings):
     """Scheduler configuration."""
 
-    auto_mode_start_hour: int = Field(default=6, alias="AUTO_MODE_START_HOUR", ge=0, le=23)
+    auto_mode_start_hour: int = Field(
+        default=6, alias="AUTO_MODE_START_HOUR", ge=0, le=23
+    )
     auto_mode_end_hour: int = Field(default=22, alias="AUTO_MODE_END_HOUR", ge=0, le=23)
-    manual_mode_start_hour: int = Field(default=22, alias="MANUAL_MODE_START_HOUR", ge=0, le=23)
-    manual_mode_end_hour: int = Field(default=6, alias="MANUAL_MODE_END_HOUR", ge=0, le=23)
+    manual_mode_start_hour: int = Field(
+        default=22, alias="MANUAL_MODE_START_HOUR", ge=0, le=23
+    )
+    manual_mode_end_hour: int = Field(
+        default=6, alias="MANUAL_MODE_END_HOUR", ge=0, le=23
+    )
     timezone: str = Field(default="Europe/Paris", alias="TIMEZONE")
     max_workers: int = Field(default=4, alias="SCHEDULER_MAX_WORKERS", ge=1, le=20)
 
@@ -62,7 +68,9 @@ class TempoSettings(BaseSettings):
     """Tempo RTE API configuration."""
 
     enabled: bool = Field(default=True, alias="TEMPO_ENABLED")
-    api_url: str = Field(default="https://www.api-rte.com/application/json", alias="TEMPO_API_URL")
+    api_url: str = Field(
+        default="https://www.api-rte.com/application/json", alias="TEMPO_API_URL"
+    )
     contract_number: str = Field(default="", alias="TEMPO_CONTRACT_NUMBER")
     timeout: int = Field(default=10, alias="TEMPO_TIMEOUT", ge=1, le=60)
 
@@ -117,4 +125,3 @@ class Settings(BaseSettings):
 def get_settings() -> Settings:
     """Get cached settings instance."""
     return Settings()
-

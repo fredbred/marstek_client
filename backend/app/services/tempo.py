@@ -135,4 +135,3 @@ class TempoService:
 
         logger.info("upcoming_red_days", count=len(red_days), days_ahead=days_ahead)
         return red_days
-

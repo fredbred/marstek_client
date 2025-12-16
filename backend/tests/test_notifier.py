@@ -48,7 +48,11 @@ def sample_battery() -> Battery:
 
 @patch("app.notifications.notifier.get_settings")
 @patch("app.notifications.notifier.Apprise")
-def test_notifier_init(mock_apprise_class: MagicMock, mock_get_settings: MagicMock, mock_settings: MagicMock) -> None:
+def test_notifier_init(
+    mock_apprise_class: MagicMock,
+    mock_get_settings: MagicMock,
+    mock_settings: MagicMock,
+) -> None:
     """Test Notifier initialization."""
     mock_get_settings.return_value = mock_settings
     mock_apprise_instance = MagicMock()
@@ -63,7 +67,9 @@ def test_notifier_init(mock_apprise_class: MagicMock, mock_get_settings: MagicMo
 
 @patch("app.notifications.notifier.get_settings")
 @patch("app.notifications.notifier.Apprise")
-def test_notifier_init_disabled(mock_apprise_class: MagicMock, mock_get_settings: MagicMock) -> None:
+def test_notifier_init_disabled(
+    mock_apprise_class: MagicMock, mock_get_settings: MagicMock
+) -> None:
     """Test Notifier initialization when disabled."""
     mock_settings = MagicMock()
     mock_settings.notification.enabled = False
@@ -79,7 +85,10 @@ def test_notifier_init_disabled(mock_apprise_class: MagicMock, mock_get_settings
 @patch("app.notifications.notifier.Apprise")
 @pytest.mark.asyncio
 async def test_send_info(
-    mock_apprise_class: MagicMock, mock_get_settings: MagicMock, mock_settings: MagicMock, mock_apprise: MagicMock
+    mock_apprise_class: MagicMock,
+    mock_get_settings: MagicMock,
+    mock_settings: MagicMock,
+    mock_apprise: MagicMock,
 ) -> None:
     """Test send_info method."""
     mock_get_settings.return_value = mock_settings
@@ -97,7 +106,10 @@ async def test_send_info(
 @patch("app.notifications.notifier.Apprise")
 @pytest.mark.asyncio
 async def test_send_warning(
-    mock_apprise_class: MagicMock, mock_get_settings: MagicMock, mock_settings: MagicMock, mock_apprise: MagicMock
+    mock_apprise_class: MagicMock,
+    mock_get_settings: MagicMock,
+    mock_settings: MagicMock,
+    mock_apprise: MagicMock,
 ) -> None:
     """Test send_warning method."""
     mock_get_settings.return_value = mock_settings
@@ -115,7 +127,10 @@ async def test_send_warning(
 @patch("app.notifications.notifier.Apprise")
 @pytest.mark.asyncio
 async def test_send_error(
-    mock_apprise_class: MagicMock, mock_get_settings: MagicMock, mock_settings: MagicMock, mock_apprise: MagicMock
+    mock_apprise_class: MagicMock,
+    mock_get_settings: MagicMock,
+    mock_settings: MagicMock,
+    mock_apprise: MagicMock,
 ) -> None:
     """Test send_error method."""
     mock_get_settings.return_value = mock_settings
@@ -133,7 +148,10 @@ async def test_send_error(
 @patch("app.notifications.notifier.Apprise")
 @pytest.mark.asyncio
 async def test_notify_mode_changed(
-    mock_apprise_class: MagicMock, mock_get_settings: MagicMock, mock_settings: MagicMock, mock_apprise: MagicMock
+    mock_apprise_class: MagicMock,
+    mock_get_settings: MagicMock,
+    mock_settings: MagicMock,
+    mock_apprise: MagicMock,
 ) -> None:
     """Test notify_mode_changed method."""
     mock_get_settings.return_value = mock_settings
@@ -155,7 +173,10 @@ async def test_notify_mode_changed(
 @patch("app.notifications.notifier.Apprise")
 @pytest.mark.asyncio
 async def test_notify_tempo_alert_red(
-    mock_apprise_class: MagicMock, mock_get_settings: MagicMock, mock_settings: MagicMock, mock_apprise: MagicMock
+    mock_apprise_class: MagicMock,
+    mock_get_settings: MagicMock,
+    mock_settings: MagicMock,
+    mock_apprise: MagicMock,
 ) -> None:
     """Test notify_tempo_alert for RED color."""
     mock_get_settings.return_value = mock_settings
@@ -164,7 +185,9 @@ async def test_notify_tempo_alert_red(
     notifier = Notifier()
 
     result = await notifier.notify_tempo_alert(
-        TempoColor.RED, target_soc=100, remaining_days={"RED": 5, "BLUE": 10, "WHITE": 200}
+        TempoColor.RED,
+        target_soc=100,
+        remaining_days={"RED": 5, "BLUE": 10, "WHITE": 200},
     )
 
     assert result is True
@@ -177,7 +200,10 @@ async def test_notify_tempo_alert_red(
 @patch("app.notifications.notifier.Apprise")
 @pytest.mark.asyncio
 async def test_notify_tempo_alert_blue(
-    mock_apprise_class: MagicMock, mock_get_settings: MagicMock, mock_settings: MagicMock, mock_apprise: MagicMock
+    mock_apprise_class: MagicMock,
+    mock_get_settings: MagicMock,
+    mock_settings: MagicMock,
+    mock_apprise: MagicMock,
 ) -> None:
     """Test notify_tempo_alert for BLUE color."""
     mock_get_settings.return_value = mock_settings
@@ -274,7 +300,10 @@ async def test_notify_battery_offline(
 @patch("app.notifications.notifier.Apprise")
 @pytest.mark.asyncio
 async def test_notifications_disabled(
-    mock_apprise_class: MagicMock, mock_get_settings: MagicMock, mock_settings: MagicMock, mock_apprise: MagicMock
+    mock_apprise_class: MagicMock,
+    mock_get_settings: MagicMock,
+    mock_settings: MagicMock,
+    mock_apprise: MagicMock,
 ) -> None:
     """Test that notifications are not sent when disabled."""
     mock_settings.notification.enabled = False
@@ -293,7 +322,10 @@ async def test_notifications_disabled(
 @patch("app.notifications.notifier.Apprise")
 @pytest.mark.asyncio
 async def test_notify_tempo_white_no_alert(
-    mock_apprise_class: MagicMock, mock_get_settings: MagicMock, mock_settings: MagicMock, mock_apprise: MagicMock
+    mock_apprise_class: MagicMock,
+    mock_get_settings: MagicMock,
+    mock_settings: MagicMock,
+    mock_apprise: MagicMock,
 ) -> None:
     """Test that WHITE Tempo color doesn't trigger alert."""
     mock_get_settings.return_value = mock_settings

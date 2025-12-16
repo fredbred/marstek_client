@@ -207,7 +207,9 @@ async def update_battery(
         await db.commit()
         await db.refresh(battery)
 
-        logger.info("battery_updated", battery_id=battery_id, fields=list(update_data.keys()))
+        logger.info(
+            "battery_updated", battery_id=battery_id, fields=list(update_data.keys())
+        )
 
         return BatteryResponse.model_validate(battery)
 
