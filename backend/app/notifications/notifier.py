@@ -77,13 +77,14 @@ class Notifier:
     """Notification service using Apprise."""
 
     def __init__(self) -> None:
-        """Initialize notifier with Apprise."""
-        self.apprise = Apprise()
         self.enabled = settings.notification.enabled
 
         if not self.enabled:
             logger.info("notifications_disabled")
+            self.apprise = None
             return
+
+        self.apprise = Apprise()
 
         # Add Telegram notification if configured
         if settings.notification.telegram_enabled:

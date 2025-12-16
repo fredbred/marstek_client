@@ -287,12 +287,8 @@ async def test_notify_battery_offline(
     last_seen = datetime.utcnow()
     result = await notifier.notify_battery_offline(sample_battery, last_seen=last_seen)
 
-    result = await notifier.notify_tempo_alert(TempoColor.WHITE)
-
-    last_seen = datetime.utcnow()
-    result = await notifier.notify_battery_offline(sample_battery, last_seen=last_seen)
-
     assert result is True
     mock_apprise.notify.assert_called_once()
+
     call_args = mock_apprise.notify.call_args
     assert "Batterie Hors Ligne" in call_args[1]["body"]
