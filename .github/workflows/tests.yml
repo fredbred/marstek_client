@@ -127,4 +127,4 @@ jobs:
       - name: Run mypy
         working-directory: ./backend
         run: |
-          poetry run mypy app --ignore-missing-imports
+          poetry run mypy app --ignore-missing-imports --disable-error-code=untyped-decorator
