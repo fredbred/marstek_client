@@ -1,10 +1,12 @@
 """Structured logging configuration."""
+from typing import cast
 
 import logging
 import sys
 from pathlib import Path
 
 import structlog
+from structlog.stdlib import BoundLogger
 from structlog.types import Processor
 
 from app.config import get_settings
@@ -72,4 +74,4 @@ def get_logger(name: str | None = None) -> structlog.stdlib.BoundLogger:
     Returns:
         Configured structlog logger
     """
-    return structlog.get_logger(name)
+    return cast(BoundLogger, structlog.get_logger(name))
