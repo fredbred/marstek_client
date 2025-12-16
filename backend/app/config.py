@@ -99,7 +99,7 @@ class Settings(BaseSettings):
 
     database: DatabaseSettings = Field(default_factory=lambda: DatabaseSettings())  # type: ignore[call-arg]
     redis: RedisSettings = Field(default_factory=lambda: RedisSettings())  # type: ignore[call-arg]
-    battery: BatterySettings = Field(default_factory=lambda: BatterySettings())  # type: ignore[call-arg]
+    battery: BatterySettings = Field(default_factory=lambda: BatterySettings())
     scheduler: SchedulerSettings = Field(default_factory=SchedulerSettings)
     tempo: TempoSettings = Field(default_factory=TempoSettings)
     notification: NotificationSettings = Field(default_factory=NotificationSettings)
