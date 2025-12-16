@@ -52,15 +52,14 @@ async def test_get_tempo_color_api_success(
     # Mock cache miss
     mock_redis.get.return_value = None
 
-    # Mock API response
-    api_response = {
-        "tempo_like_calendars": [{"date": target_date.isoformat(), "value": "BLUE"}]
-    }
-
     # Mock API response - Format attendu par api-couleur-tempo.fr
     api_response = [
         {"dateJour": target_date.isoformat(), "codeJour": 1, "libCouleur": "Bleu"}
     ]
+
+    with patch.object(tempo_service, "_get_http_client") as mock_get_client:
+        mock_client = MagicMock()
+        mock_response = MagicMock()
         mock_response.json.return_value = api_response
         mock_response.raise_for_status = MagicMock()
         mock_client.get = AsyncMock(return_value=mock_response)
@@ -71,8 +70,16 @@ async def test_get_tempo_color_api_success(
         assert color == TempoColor.BLUE
         mock_redis.setex.assert_called_once()  # Should cache the result
 
+        mock_response.raise_for_status = MagicMock()
+        mock_client.get = AsyncMock(return_value=mock_response)
+        mock_get_client.return_value = mock_client
 
-@pytest.mark.asyncio
+        color = await tempo_service.get_tempo_color(target_date)
+
+        assert color == TempoColor.BLUE
+        mock_redis.setex.assert_called_once()  # Should cache the result
+
+
 async def test_get_tempo_color_api_error(
     tempo_service: TempoService, mock_redis: MagicMock
 ) -> None:
@@ -158,9 +165,78 @@ async def test_get_remaining_days_success(
     tempo_service: TempoService, mock_redis: MagicMock
 ) -> None:
     """Test getting remaining days."""
-    api_response = {
-    assert ttl > 0
-    assert ttl < 86400  # Less than 24 hours
+    from datetime import timedelta
+
+    today = date.today()
+    # Mock API response - Format attendu par api-couleur-tempo.fr
+    # Ajouter 22 jours bleus
+    api_response = []
+    for i in range(22):
+        api_response.append(
+            {
+                "dateJour": (today + timedelta(days=i + 1)).isoformat(),
+                "codeJour": 1,
+                "libCouleur": "Bleu",
+            }
+        )
+    # Ajouter 43 jours blancs
+    for i in range(43):
+        api_response.append(
+            {
+                "dateJour": (today + timedelta(days=i + 23)).isoformat(),
+                "codeJour": 2,
+                "libCouleur": "Blanc",
+            }
+        )
+
+    with patch.object(tempo_service, "_get_http_client") as mock_get_client:
+        mock_client = MagicMock()
+        mock_response = MagicMock()
+        mock_response.json.return_value = api_response
+        mock_response.raise_for_status = MagicMock()
+        mock_client.get = AsyncMock(return_value=mock_response)
+        mock_get_client.return_value = mock_client
+
+        remaining = await tempo_service.get_remaining_days()
+
+        assert remaining["BLUE"] == 22
+        assert remaining["WHITE"] == 43
+        assert remaining["RED"] == 0
+
+    # Mock API response - Format attendu par api-couleur-tempo.fr
+    # Ajouter 22 jours bleus
+    api_response = []
+    for i in range(22):
+        api_response.append(
+            {
+                "dateJour": (today + timedelta(days=i + 1)).isoformat(),
+                "codeJour": 1,
+                "libCouleur": "Bleu",
+            }
+        )
+    # Ajouter 43 jours blancs
+    for i in range(43):
+        api_response.append(
+            {
+                "dateJour": (today + timedelta(days=i + 23)).isoformat(),
+                "codeJour": 2,
+                "libCouleur": "Blanc",
+            }
+        )
+
+    with patch.object(tempo_service, "_get_http_client") as mock_get_client:
+        mock_client = MagicMock()
+        mock_response = MagicMock()
+        mock_response.json.return_value = api_response
+        mock_response.raise_for_status = MagicMock()
+        mock_client.get = AsyncMock(return_value=mock_response)
+        mock_get_client.return_value = mock_client
+
+        remaining = await tempo_service.get_remaining_days()
+
+        assert remaining["BLUE"] == 22
+        assert remaining["WHITE"] == 43
+        assert remaining["RED"] == 0
 
 
 @pytest.mark.asyncio
@@ -218,15 +294,28 @@ async def test_tempo_calendar_from_dict() -> None:
     assert calendar.date == date(2024, 1, 15)
     assert calendar.color == TempoColor.BLUE
     from datetime import timedelta
+
     today = date.today()
     # Mock API response - Format attendu par api-couleur-tempo.fr
     # Ajouter 22 jours bleus
     api_response = []
     for i in range(22):
-        api_response.append({"dateJour": (today + timedelta(days=i+1)).isoformat(), "codeJour": 1, "libCouleur": "Bleu"})
+        api_response.append(
+            {
+                "dateJour": (today + timedelta(days=i + 1)).isoformat(),
+                "codeJour": 1,
+                "libCouleur": "Bleu",
+            }
+        )
     # Ajouter 43 jours blancs
     for i in range(43):
-        api_response.append({"dateJour": (today + timedelta(days=i+23)).isoformat(), "codeJour": 2, "libCouleur": "Blanc"})
+        api_response.append(
+            {
+                "dateJour": (today + timedelta(days=i + 23)).isoformat(),
+                "codeJour": 2,
+                "libCouleur": "Blanc",
+            }
+        )
 
     with patch.object(tempo_service, "_get_http_client") as mock_get_client:
         mock_client = MagicMock()
@@ -243,15 +332,28 @@ async def test_tempo_calendar_from_dict() -> None:
         assert remaining["RED"] == 0
     """Test getting remaining days."""
     from datetime import timedelta
+
     today = date.today()
     # Mock API response - Format attendu par api-couleur-tempo.fr
     # Ajouter 22 jours bleus
     api_response = []
     for i in range(22):
-        api_response.append({"dateJour": (today + timedelta(days=i+1)).isoformat(), "codeJour": 1, "libCouleur": "Bleu"})
+        api_response.append(
+            {
+                "dateJour": (today + timedelta(days=i + 1)).isoformat(),
+                "codeJour": 1,
+                "libCouleur": "Bleu",
+            }
+        )
     # Ajouter 43 jours blancs
     for i in range(43):
-        api_response.append({"dateJour": (today + timedelta(days=i+23)).isoformat(), "codeJour": 2, "libCouleur": "Blanc"})
+        api_response.append(
+            {
+                "dateJour": (today + timedelta(days=i + 23)).isoformat(),
+                "codeJour": 2,
+                "libCouleur": "Blanc",
+            }
+        )
 
     with patch.object(tempo_service, "_get_http_client") as mock_get_client:
         mock_client = MagicMock()
@@ -272,3 +374,14 @@ async def test_tempo_calendar_from_dict() -> None:
 async def test_get_remaining_days_error(
     tempo_service: TempoService, mock_redis: MagicMock
 ) -> None:
+    """Test getting remaining days with API error."""
+    with patch.object(tempo_service, "_get_http_client") as mock_get_client:
+        mock_client = MagicMock()
+        mock_client.get = AsyncMock(side_effect=httpx.HTTPError("API Error"))
+        mock_get_client.return_value = mock_client
+
+        remaining = await tempo_service.get_remaining_days()
+
+        assert remaining["BLUE"] == 0
+        assert remaining["WHITE"] == 0
+        assert remaining["RED"] == 0
