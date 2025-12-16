@@ -1,6 +1,7 @@
 """FastAPI application entry point."""
 
 import os
+
 import structlog
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware

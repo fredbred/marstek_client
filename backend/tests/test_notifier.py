@@ -7,7 +7,7 @@ import pytest
 
 from app.core.tempo_service import TempoColor
 from app.models import Battery
-from app.notifications.notifier import Notifier, TEMPLATES
+from app.notifications.notifier import TEMPLATES, Notifier
 
 
 @pytest.fixture

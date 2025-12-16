@@ -1,7 +1,8 @@
 """API routes for battery management."""
 
-import structlog
 from typing import Any
+
+import structlog
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded

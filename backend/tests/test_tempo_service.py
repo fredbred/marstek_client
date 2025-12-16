@@ -7,8 +7,8 @@ import httpx
 import pytest
 import redis.asyncio as aioredis
 
-from app.core.tempo_service import TempoCalendar, TempoColor, TempoService
 from app.config import get_settings
+from app.core.tempo_service import TempoCalendar, TempoColor, TempoService
 
 
 @pytest.fixture

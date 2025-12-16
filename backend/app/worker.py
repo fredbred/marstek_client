@@ -3,7 +3,7 @@
 import os
 
 from redis import Redis
-from rq import Worker, Queue, Connection
+from rq import Connection, Queue, Worker
 
 from app.config import get_settings
 from app.core.logger import configure_logging, get_logger
