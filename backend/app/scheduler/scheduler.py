@@ -180,7 +180,7 @@ async def shutdown_scheduler() -> None:
     logger.info("scheduler_shutting_down")
 
     try:
-        if _scheduler.running:
+        if _scheduler is not None and _scheduler.running:
             _scheduler.shutdown(wait=True, timeout=30)
         logger.info("scheduler_shutdown_complete")
     except Exception as e:
