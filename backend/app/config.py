@@ -97,9 +97,9 @@ class Settings(BaseSettings):
     log_level: str = Field(default="INFO", alias="LOG_LEVEL")
     timezone: str = Field(default="Europe/Paris", alias="TIMEZONE")
 
-    database: DatabaseSettings = Field(default_factory=lambda: DatabaseSettings())
-    redis: RedisSettings = Field(default_factory=lambda: RedisSettings())
-    battery: BatterySettings = Field(default_factory=lambda: BatterySettings())
+    database: DatabaseSettings = Field(default_factory=lambda: DatabaseSettings())  # type: ignore[call-arg]
+    redis: RedisSettings = Field(default_factory=lambda: RedisSettings())  # type: ignore[call-arg]
+    battery: BatterySettings = Field(default_factory=lambda: BatterySettings())  # type: ignore[call-arg]
     scheduler: SchedulerSettings = Field(default_factory=SchedulerSettings)
     tempo: TempoSettings = Field(default_factory=TempoSettings)
     notification: NotificationSettings = Field(default_factory=NotificationSettings)

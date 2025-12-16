@@ -145,7 +145,7 @@ async def set_manual_mode(
             end_time=config.end_time,
             week_set=config.week_set,
             power=config.power,
-            enable=config.enable,
+            enable=bool(config.enable),
         )
 
         mode_config = {

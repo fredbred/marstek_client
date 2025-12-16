@@ -18,7 +18,7 @@ def get_battery_manager() -> BatteryManager:
     return BatteryManager()
 
 
-async def get_db_session() -> AsyncSession:
+async def get_db_session() -> AsyncSession:  # type: ignore[misc]
     """Dependency for database session.
 
     Yields:

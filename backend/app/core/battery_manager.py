@@ -140,7 +140,7 @@ class BatteryManager:
         # Construire le dictionnaire de résultats
         status_dict: dict[int, dict[str, Any]] = {}
 
-        for battery, result in zip(batteries, results):
+        for battery, result in zip(batteries, results):  # type: ignore[assignment]
             if isinstance(result, Exception):
                 logger.error(
                     "battery_status_fetch_failed",
@@ -149,7 +149,7 @@ class BatteryManager:
                 )
                 status_dict[battery.id] = {"error": str(result)}
             else:
-                status_dict[battery.id] = result
+                status_dict[battery.id] = result  # type: ignore[assignment]
 
         return status_dict
 
@@ -181,7 +181,7 @@ class BatteryManager:
                 )
                 result["bat_status"] = None
             else:
-                result["bat_status"] = bat_status.model_dump()
+                result["bat_status"] = bat_status.model_dump()  # type: ignore[union-attr]
 
             if isinstance(es_status, Exception):
                 logger.warning(
@@ -191,7 +191,7 @@ class BatteryManager:
                 )
                 result["es_status"] = None
             else:
-                result["es_status"] = es_status.model_dump()
+                result["es_status"] = es_status.model_dump()  # type: ignore[union-attr]
 
             if isinstance(mode_info, Exception):
                 logger.warning(
@@ -201,7 +201,7 @@ class BatteryManager:
                 )
                 result["mode_info"] = None
             else:
-                result["mode_info"] = mode_info.model_dump()
+                result["mode_info"] = mode_info.model_dump()  # type: ignore[union-attr]
 
             return result
 
@@ -277,7 +277,7 @@ class BatteryManager:
         # Construire le dictionnaire de résultats
         success_dict: dict[int, bool] = {}
 
-        for battery, result in zip(batteries, results):
+        for battery, result in zip(batteries, results):  # type: ignore[assignment]
             if isinstance(result, Exception):
                 logger.error(
                     "mode_set_failed",
@@ -287,7 +287,7 @@ class BatteryManager:
                 )
                 success_dict[battery.id] = False
             else:
-                success_dict[battery.id] = result
+                success_dict[battery.id] = result  # type: ignore[assignment]
                 logger.info(
                     "mode_set_success",
                     battery_id=battery.id,

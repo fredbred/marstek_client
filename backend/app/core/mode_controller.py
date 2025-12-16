@@ -102,7 +102,7 @@ class ModeController:
             end_time="06:00",
             week_set=127,  # Tous les jours
             power=0,  # 0W décharge
-            enable=1,
+            enable=True,
         )
 
         mode_config = {
