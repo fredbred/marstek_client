@@ -8,11 +8,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.dependencies import get_battery_manager, get_db_session
-from app.api.schemas import (
-    BatteryResponse,
-    BatteryStatusResponse,
-    BatteryUpdate,
-)
+from app.api.schemas import BatteryResponse, BatteryStatusResponse, BatteryUpdate
 from app.core import BatteryManager
 from app.models import Battery
 
