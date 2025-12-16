@@ -271,3 +271,6 @@ async def test_tempo_calendar_from_dict() -> None:
     data = {"date": "2024-01-15", "color": "BLUE"}
 
     calendar = TempoCalendar.from_dict(data)
+
+    assert calendar.date == date(2024, 1, 15)
+    assert calendar.color == TempoColor.BLUE
