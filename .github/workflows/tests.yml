@@ -51,6 +51,12 @@ jobs:
           virtualenvs-create: true
           virtualenvs-in-project: true
       
+      - name: Generate poetry.lock
+        working-directory: ./backend
+        run: |
+          poetry lock --no-update || poetry lock
+
+      
       - name: Install dependencies
         working-directory: ./backend
         run: |
@@ -91,6 +97,12 @@ jobs:
           version: latest
           virtualenvs-create: true
           virtualenvs-in-project: true
+      
+      - name: Generate poetry.lock
+        working-directory: ./backend
+        run: |
+          poetry lock --no-update || poetry lock
+
       
       - name: Install dependencies
         working-directory: ./backend
