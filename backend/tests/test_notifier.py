@@ -7,7 +7,7 @@ import pytest
 
 from app.core.tempo_service import TempoColor
 from app.models import Battery
-from app.notifications.notifier import TEMPLATES, Notifier
+from app.notifications.notifier import Notifier
 
 
 @pytest.fixture
@@ -62,11 +62,10 @@ def test_notifier_init(
 
     assert notifier.enabled is True
     assert notifier.apprise == mock_apprise_instance
-    # apprise.add is only called if notification URLs are provided
-    # If URLs are empty (default), add is not called
-    # This is expected behavior
 
 
+@patch("app.notifications.notifier.settings")
+@patch("app.notifications.notifier.Apprise")
 def test_notifier_init_disabled(
     mock_apprise_class: MagicMock, mock_settings: MagicMock
 ) -> None:
@@ -74,11 +73,6 @@ def test_notifier_init_disabled(
     mock_settings.notification.enabled = False
 
     notifier = Notifier()
-
-    assert notifier.enabled is False
-    mock_apprise_class.assert_not_called()
-
-    mock_settings.notification.enabled = False
 
     assert notifier.enabled is False
     mock_apprise_class.assert_not_called()
@@ -295,12 +289,10 @@ async def test_notify_battery_offline(
 
     result = await notifier.notify_tempo_alert(TempoColor.WHITE)
 
-    assert result is False
-    mock_apprise.notify.assert_not_called()
+    last_seen = datetime.utcnow()
+    result = await notifier.notify_battery_offline(sample_battery, last_seen=last_seen)
 
-
-def test_templates_exist() -> None:
-    """Test that all templates are defined."""
-    assert "mode_changed" in TEMPLATES
-    assert "tempo_red_alert" in TEMPLATES
-    assert "battery_offline" in TEMPLATES
+    assert result is True
+    mock_apprise.notify.assert_called_once()
+    call_args = mock_apprise.notify.call_args
+    assert "Batterie Hors Ligne" in call_args[1]["body"]

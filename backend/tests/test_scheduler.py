@@ -146,7 +146,7 @@ async def test_scheduler_persistence() -> None:
         await shutdown_scheduler()
     from app.scheduler.scheduler import shutdown_scheduler
 
-    shutdown_scheduler()  # Reset scheduler
+    await shutdown_scheduler()  # Reset scheduler
 
 
 @pytest.mark.asyncio
