@@ -97,7 +97,6 @@ async def health() -> dict[str, str]:
     return {"status": "healthy"}
 
 
-
 app.include_router(batteries.router, prefix="/api/v1")
 app.include_router(modes.router, prefix="/api/v1")
 app.include_router(scheduler.router, prefix="/api/v1")
