@@ -10,7 +10,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.marstek_client import MarstekUDPClient
 from app.models import Battery, BatteryStatusLog
-from app.models.marstek_api import BatteryStatus, DeviceInfo, ESStatus, ModeInfo
 
 logger = structlog.get_logger(__name__)
 
@@ -121,7 +120,7 @@ class BatteryManager:
             Dictionnaire {battery_id: {status, es_status, mode_info}}
         """
         # Récupérer toutes les batteries actives
-        stmt = select(Battery).where(Battery.is_active == True)
+        stmt = select(Battery).where(Battery.is_active)
         result = await db.execute(stmt)
         batteries = result.scalars().all()
 
@@ -229,7 +228,7 @@ class BatteryManager:
             Dictionnaire {battery_id: success} indiquant le succès pour chaque batterie
         """
         # Récupérer toutes les batteries actives
-        stmt = select(Battery).where(Battery.is_active == True)
+        stmt = select(Battery).where(Battery.is_active)
         result = await db.execute(stmt)
         batteries = result.scalars().all()
 
@@ -310,9 +309,9 @@ class BatteryManager:
         status_dict = await self.get_all_status(db)
 
         # Récupérer les batteries pour avoir les IDs
-        stmt = select(Battery).where(Battery.is_active == True)
+        stmt = select(Battery).where(Battery.is_active)
         result = await db.execute(stmt)
-        batteries = {b.id: b for b in result.scalars().all()}
+        {b.id: b for b in result.scalars().all()}
 
         # Créer les logs
         logs_created = 0

@@ -1,11 +1,9 @@
 """API routes for mode management."""
 
-from typing import Any
 
 import structlog
 from fastapi import APIRouter, Depends, HTTPException, Request, status
-from slowapi import Limiter, _rate_limit_exceeded_handler
-from slowapi.errors import RateLimitExceeded
+from slowapi import Limiter
 from slowapi.util import get_remote_address
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -43,7 +41,7 @@ async def get_current_modes(
     """
     try:
         # Récupérer toutes les batteries
-        stmt = select(Battery).where(Battery.is_active == True)
+        stmt = select(Battery).where(Battery.is_active)
         result = await db.execute(stmt)
         batteries = result.scalars().all()
 

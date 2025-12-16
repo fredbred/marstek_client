@@ -2,13 +2,13 @@
 
 import os
 
-import structlog
-from fastapi import FastAPI, Request
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from slowapi.util import get_remote_address
 
+from app.api.routes import batteries, modes, scheduler, tempo
 from app.config import get_settings
 from app.core.logger import configure_logging, get_logger
 from app.database import init_db
@@ -61,7 +61,7 @@ async def startup_event() -> None:
 
     # Initialiser et démarrer le scheduler
     try:
-        scheduler = init_scheduler()
+        init_scheduler()
         start_scheduler()
         logger.info("scheduler_started")
     except Exception as e:
@@ -97,8 +97,6 @@ async def health() -> dict[str, str]:
     return {"status": "healthy"}
 
 
-# Import routers
-from app.api.routes import batteries, modes, scheduler, tempo
 
 app.include_router(batteries.router, prefix="/api/v1")
 app.include_router(modes.router, prefix="/api/v1")

@@ -2,8 +2,7 @@
 
 import structlog
 from fastapi import APIRouter, Depends, HTTPException, Request, status
-from slowapi import Limiter, _rate_limit_exceeded_handler
-from slowapi.errors import RateLimitExceeded
+from slowapi import Limiter
 from slowapi.util import get_remote_address
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession

@@ -2,14 +2,13 @@
 
 from functools import lru_cache
 
-from fastapi import Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core import BatteryManager
 from app.database import get_db
 
 
-@lru_cache()
+@lru_cache
 def get_battery_manager() -> BatteryManager:
     """Get singleton BatteryManager instance.
 

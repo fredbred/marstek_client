@@ -2,7 +2,7 @@
 
 import json
 import socket
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -68,7 +68,7 @@ async def test_send_command_timeout_retry(
     client: MarstekUDPClient, mock_socket: MagicMock
 ) -> None:
     """Test command retry on timeout."""
-    mock_socket.recvfrom.side_effect = socket.timeout("Timeout")
+    mock_socket.recvfrom.side_effect = TimeoutError("Timeout")
 
     with patch.object(client, "_create_socket", return_value=mock_socket):
         with pytest.raises(TimeoutError):
@@ -145,7 +145,7 @@ async def test_broadcast_discover(
     mock_socket.recvfrom.side_effect = [
         (response1, ("192.168.1.100", 30000)),
         (response2, ("192.168.1.101", 30000)),
-        socket.timeout(),  # End discovery
+        TimeoutError(),  # End discovery
     ]
 
     with patch.object(client, "_create_socket", return_value=mock_socket):
@@ -452,8 +452,8 @@ async def test_send_command_json_decode_error(
 
     mock_socket.recvfrom.side_effect = [
         (invalid_json, ("192.168.1.100", 30000)),
-        socket.timeout(),  # Retry fails
-        socket.timeout(),  # Final retry fails
+        TimeoutError(),  # Retry fails
+        TimeoutError(),  # Final retry fails
     ]
 
     with patch.object(client, "_create_socket", return_value=mock_socket):

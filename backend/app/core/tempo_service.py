@@ -105,7 +105,7 @@ class TempoService:
             TTL in seconds
         """
         now = datetime.now()
-        target_datetime = datetime.combine(target_date, datetime.min.time())
+        datetime.combine(target_date, datetime.min.time())
 
         if target_date == now.date():
             # Cache jusqu'à minuit
@@ -301,7 +301,7 @@ class TempoService:
             True si précharge nécessaire, False sinon
         """
         today = date.today()
-        tomorrow = today + timedelta(days=1)
+        today + timedelta(days=1)
 
         today_color = await self.get_tempo_color(today)
         tomorrow_color = await self.get_tomorrow_color()

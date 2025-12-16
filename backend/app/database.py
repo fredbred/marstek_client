@@ -1,6 +1,6 @@
 """Database configuration and session management."""
 
-from typing import AsyncGenerator
+from collections.abc import AsyncGenerator
 
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
@@ -54,7 +54,6 @@ async def get_db() -> AsyncGenerator[AsyncSession, None]:
 
 async def init_db() -> None:
     """Initialize database: create tables and TimescaleDB hypertables."""
-    from app.models.base import Base
     from app.models.battery import Battery
     from app.models.schedule import ScheduleConfig
     from app.models.status_log import BatteryStatusLog

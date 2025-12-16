@@ -182,7 +182,7 @@ class MarstekUDPClient:
                 sock.close()
                 return response
 
-            except socket.timeout as e:
+            except TimeoutError as e:
                 last_error = e
                 logger.warning(
                     "marstek_command_timeout",
@@ -315,7 +315,7 @@ class MarstekUDPClient:
                             version=device_info.ver,
                         )
 
-                except socket.timeout:
+                except TimeoutError:
                     break
                 except json.JSONDecodeError as e:
                     logger.warning("marstek_discovery_invalid_response", error=str(e))

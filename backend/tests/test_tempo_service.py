@@ -7,7 +7,6 @@ import httpx
 import pytest
 import redis.asyncio as aioredis
 
-from app.config import get_settings
 from app.core.tempo_service import TempoCalendar, TempoColor, TempoService
 
 
@@ -140,7 +139,7 @@ async def test_should_activate_precharge_false_today_red(
 ) -> None:
     """Test precharge not activated when today is already red."""
     today = date.today()
-    tomorrow = today + timedelta(days=1)
+    today + timedelta(days=1)
 
     # Mock cache: both RED
     def mock_get(key: str) -> str | None:

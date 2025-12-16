@@ -5,7 +5,7 @@ from datetime import date, timedelta
 import structlog
 from fastapi import APIRouter, Depends, HTTPException
 
-from app.core.tempo_service import TempoCalendar, TempoColor, TempoService
+from app.core.tempo_service import TempoCalendar, TempoService
 
 logger = structlog.get_logger(__name__)
 router = APIRouter(prefix="/tempo", tags=["tempo"])

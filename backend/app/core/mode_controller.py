@@ -1,13 +1,12 @@
 """Mode controller for battery operation modes."""
 
-from datetime import datetime, time
+from datetime import datetime
 from typing import Any
 
 import structlog
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.battery_manager import BatteryManager
-from app.core.marstek_client import MarstekAPIError
 from app.models.marstek_api import ManualConfig
 
 logger = structlog.get_logger(__name__)
@@ -171,7 +170,7 @@ class ModeController:
         results = await self.switch_to_auto_mode(db)
 
         if self.notification_service:
-            success_count = sum(1 for success in results.values() if success)
+            sum(1 for success in results.values() if success)
             await self._send_notification(
                 "⚡ Précharge Tempo activée",
                 f"Les batteries sont en mode AUTO pour précharger à {target_soc}% "

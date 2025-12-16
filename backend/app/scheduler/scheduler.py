@@ -1,6 +1,5 @@
 """APScheduler configuration and initialization."""
 
-import atexit
 import signal
 from typing import Any
 

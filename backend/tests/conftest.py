@@ -1,9 +1,9 @@
 """Pytest configuration and fixtures."""
 
 import asyncio
+from collections.abc import AsyncGenerator
 from datetime import datetime
-from typing import AsyncGenerator
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 import pytest_asyncio
@@ -11,7 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import sessionmaker
 
 from app.core.marstek_client import MarstekUDPClient
-from app.database import Base, get_db
+from app.database import Base
 from app.models import Battery
 
 

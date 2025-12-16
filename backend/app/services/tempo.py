@@ -1,6 +1,6 @@
 """Service d'intégration API Tempo RTE."""
 
-from datetime import date, datetime
+from datetime import date
 from typing import Any
 
 import httpx
