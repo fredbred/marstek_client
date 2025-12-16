@@ -15,6 +15,9 @@ Marstek Automation est une solution complète pour gérer automatiquement plusie
 
 ## 🏗️ Architecture
 
+
+
+
 ```
 marstek-automation/
 ├── docker-compose.yml          # Orchestration des services
