@@ -27,19 +27,11 @@ class RedisSettings(BaseSettings):
 class BatterySettings(BaseSettings):
     """Battery configuration."""
 
-<<<<<<< HEAD
-    battery_1_ip: str = Field(alias="BATTERY_1_IP")
-    battery_1_port: int = Field(default=30001, alias="BATTERY_1_PORT")
-    battery_2_ip: str = Field(alias="BATTERY_2_IP")
-    battery_2_port: int = Field(default=30002, alias="BATTERY_2_PORT")
-    battery_3_ip: str = Field(alias="BATTERY_3_IP")
-=======
     battery_1_ip: str = Field(default="", alias="BATTERY_1_IP")
     battery_1_port: int = Field(default=30001, alias="BATTERY_1_PORT")
     battery_2_ip: str = Field(default="", alias="BATTERY_2_IP")
     battery_2_port: int = Field(default=30002, alias="BATTERY_2_PORT")
     battery_3_ip: str = Field(default="", alias="BATTERY_3_IP")
->>>>>>> origin/main
     battery_3_port: int = Field(default=30003, alias="BATTERY_3_PORT")
 
     model_config = SettingsConfigDict(case_sensitive=False)
@@ -56,12 +48,6 @@ class BatterySettings(BaseSettings):
 class SchedulerSettings(BaseSettings):
     """Scheduler configuration."""
 
-<<<<<<< HEAD
-    auto_mode_start_hour: int = Field(default=6, alias="AUTO_MODE_START_HOUR", ge=0, le=23)
-    auto_mode_end_hour: int = Field(default=22, alias="AUTO_MODE_END_HOUR", ge=0, le=23)
-    manual_mode_start_hour: int = Field(default=22, alias="MANUAL_MODE_START_HOUR", ge=0, le=23)
-    manual_mode_end_hour: int = Field(default=6, alias="MANUAL_MODE_END_HOUR", ge=0, le=23)
-=======
     auto_mode_start_hour: int = Field(
         default=6, alias="AUTO_MODE_START_HOUR", ge=0, le=23
     )
@@ -72,7 +58,6 @@ class SchedulerSettings(BaseSettings):
     manual_mode_end_hour: int = Field(
         default=6, alias="MANUAL_MODE_END_HOUR", ge=0, le=23
     )
->>>>>>> origin/main
     timezone: str = Field(default="Europe/Paris", alias="TIMEZONE")
     max_workers: int = Field(default=4, alias="SCHEDULER_MAX_WORKERS", ge=1, le=20)
 
@@ -83,13 +68,9 @@ class TempoSettings(BaseSettings):
     """Tempo RTE API configuration."""
 
     enabled: bool = Field(default=True, alias="TEMPO_ENABLED")
-<<<<<<< HEAD
-    api_url: str = Field(default="https://www.api-rte.com/application/json", alias="TEMPO_API_URL")
-=======
     api_url: str = Field(
         default="https://www.api-rte.com/application/json", alias="TEMPO_API_URL"
     )
->>>>>>> origin/main
     contract_number: str = Field(default="", alias="TEMPO_CONTRACT_NUMBER")
     timeout: int = Field(default=10, alias="TEMPO_TIMEOUT", ge=1, le=60)
 
@@ -116,15 +97,9 @@ class Settings(BaseSettings):
     log_level: str = Field(default="INFO", alias="LOG_LEVEL")
     timezone: str = Field(default="Europe/Paris", alias="TIMEZONE")
 
-<<<<<<< HEAD
-    database: DatabaseSettings = Field(default_factory=DatabaseSettings)
-    redis: RedisSettings = Field(default_factory=RedisSettings)
-    battery: BatterySettings = Field(default_factory=BatterySettings)
-=======
     database: DatabaseSettings = Field(default_factory=lambda: DatabaseSettings())  # type: ignore[call-arg]
     redis: RedisSettings = Field(default_factory=lambda: RedisSettings())  # type: ignore[call-arg]
     battery: BatterySettings = Field(default_factory=lambda: BatterySettings())
->>>>>>> origin/main
     scheduler: SchedulerSettings = Field(default_factory=SchedulerSettings)
     tempo: TempoSettings = Field(default_factory=TempoSettings)
     notification: NotificationSettings = Field(default_factory=NotificationSettings)
@@ -146,15 +121,7 @@ class Settings(BaseSettings):
         return v.upper()
 
 
-<<<<<<< HEAD
-@lru_cache()
-def get_settings() -> Settings:
-    """Get cached settings instance."""
-    return Settings()
-
-=======
 @lru_cache
 def get_settings() -> Settings:
     """Get cached settings instance."""
     return Settings()
->>>>>>> origin/main

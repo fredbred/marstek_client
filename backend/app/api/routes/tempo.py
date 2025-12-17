@@ -4,12 +4,7 @@ from datetime import date, timedelta
 
 import structlog
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
-<<<<<<< HEAD
-from slowapi import Limiter, _rate_limit_exceeded_handler
-from slowapi.errors import RateLimitExceeded
-=======
 from slowapi import Limiter
->>>>>>> origin/main
 from slowapi.util import get_remote_address
 
 from app.api.schemas import TempoCalendarResponse
@@ -131,13 +126,7 @@ async def get_tempo_calendar(
         current_date = start_date
         while current_date <= end_date:
             color = await tempo_service.get_tempo_color(current_date)
-<<<<<<< HEAD
-            calendar.append(
-                TempoCalendarResponse(date=current_date, color=color.value)
-            )
-=======
             calendar.append(TempoCalendarResponse(date=current_date, color=color.value))
->>>>>>> origin/main
             current_date += timedelta(days=1)
 
         logger.info(

@@ -1,10 +1,6 @@
 """Service d'intégration API Tempo RTE."""
 
-<<<<<<< HEAD
-from datetime import date, datetime
-=======
 from datetime import date
->>>>>>> origin/main
 from typing import Any
 
 import httpx
@@ -139,7 +135,4 @@ class TempoService:
 
         logger.info("upcoming_red_days", count=len(red_days), days_ahead=days_ahead)
         return red_days
-<<<<<<< HEAD
 
-=======
->>>>>>> origin/main

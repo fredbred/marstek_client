@@ -3,10 +3,6 @@
 from datetime import datetime
 
 import structlog
-<<<<<<< HEAD
-from sqlalchemy.ext.asyncio import AsyncSession
-=======
->>>>>>> origin/main
 
 from app.core import BatteryManager, ModeController
 from app.database import async_session_maker
@@ -96,11 +92,8 @@ async def job_check_tempo_tomorrow() -> None:
             from datetime import timedelta
 
             from app.config import get_settings
-<<<<<<< HEAD
             from app.core.tempo_service import TempoColor, TempoService
-=======
             from app.core.tempo_service import TempoService
->>>>>>> origin/main
 
             settings = get_settings()
 
@@ -223,11 +216,7 @@ async def job_health_check() -> None:
             from app.models import Battery
 
             # Récupérer toutes les batteries actives
-<<<<<<< HEAD
-            stmt = select(Battery).where(Battery.is_active == True)
-=======
             stmt = select(Battery).where(Battery.is_active)
->>>>>>> origin/main
             result = await db.execute(stmt)
             batteries = result.scalars().all()
 
@@ -278,7 +267,4 @@ async def job_health_check() -> None:
                 exc_info=True,
             )
             await db.rollback()
-<<<<<<< HEAD
 
-=======
->>>>>>> origin/main

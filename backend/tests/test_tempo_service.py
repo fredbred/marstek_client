@@ -8,10 +8,6 @@ import pytest
 import redis.asyncio as aioredis
 
 from app.core.tempo_service import TempoCalendar, TempoColor, TempoService
-<<<<<<< HEAD
-from app.config import get_settings
-=======
->>>>>>> origin/main
 
 
 @pytest.fixture
@@ -31,13 +27,10 @@ def tempo_service(mock_redis: MagicMock) -> TempoService:
 
 
 @pytest.mark.asyncio
-<<<<<<< HEAD
 async def test_get_tempo_color_cache_hit(tempo_service: TempoService, mock_redis: MagicMock) -> None:
-=======
 async def test_get_tempo_color_cache_hit(
     tempo_service: TempoService, mock_redis: MagicMock
 ) -> None:
->>>>>>> origin/main
     """Test getting Tempo color from cache."""
     target_date = date.today()
 
@@ -51,32 +44,19 @@ async def test_get_tempo_color_cache_hit(
 
 
 @pytest.mark.asyncio
-<<<<<<< HEAD
-async def test_get_tempo_color_api_success(tempo_service: TempoService, mock_redis: MagicMock) -> None:
-=======
 async def test_get_tempo_color_api_success(
     tempo_service: TempoService, mock_redis: MagicMock
 ) -> None:
->>>>>>> origin/main
     """Test getting Tempo color from API."""
     target_date = date.today()
 
     # Mock cache miss
     mock_redis.get.return_value = None
 
-<<<<<<< HEAD
-    # Mock API response
-    api_response = {
-        "tempo_like_calendars": [
-            {"date": target_date.isoformat(), "value": "BLUE"}
-        ]
-    }
-=======
     # Mock API response - Format attendu par api-couleur-tempo.fr
     api_response = [
         {"dateJour": target_date.isoformat(), "codeJour": 1, "libCouleur": "Bleu"}
     ]
->>>>>>> origin/main
 
     with patch.object(tempo_service, "_get_http_client") as mock_get_client:
         mock_client = MagicMock()
@@ -91,19 +71,6 @@ async def test_get_tempo_color_api_success(
         assert color == TempoColor.BLUE
         mock_redis.setex.assert_called_once()  # Should cache the result
 
-<<<<<<< HEAD
-
-@pytest.mark.asyncio
-async def test_get_tempo_color_api_error(tempo_service: TempoService, mock_redis: MagicMock) -> None:
-    """Test getting Tempo color with API error."""
-    target_date = date.today()
-
-    # Mock cache miss
-    mock_redis.get.return_value = None
-
-    # Mock API error
-=======
->>>>>>> origin/main
     with patch.object(tempo_service, "_get_http_client") as mock_get_client:
         mock_client = MagicMock()
         mock_client.get = AsyncMock(side_effect=httpx.HTTPError("API Error"))
@@ -115,13 +82,10 @@ async def test_get_tempo_color_api_error(tempo_service: TempoService, mock_redis
 
 
 @pytest.mark.asyncio
-<<<<<<< HEAD
 async def test_get_tomorrow_color(tempo_service: TempoService, mock_redis: MagicMock) -> None:
-=======
 async def test_get_tomorrow_color(
     tempo_service: TempoService, mock_redis: MagicMock
 ) -> None:
->>>>>>> origin/main
     """Test getting tomorrow's color."""
     tomorrow = date.today() + timedelta(days=1)
 
@@ -165,11 +129,7 @@ async def test_should_activate_precharge_false_today_red(
 ) -> None:
     """Test precharge not activated when today is already red."""
     today = date.today()
-<<<<<<< HEAD
     tomorrow = today + timedelta(days=1)
-=======
-    today + timedelta(days=1)
->>>>>>> origin/main
 
     # Mock cache: both RED
     def mock_get(key: str) -> str | None:
@@ -183,17 +143,6 @@ async def test_should_activate_precharge_false_today_red(
 
 
 @pytest.mark.asyncio
-<<<<<<< HEAD
-async def test_get_remaining_days_success(tempo_service: TempoService, mock_redis: MagicMock) -> None:
-    """Test getting remaining days."""
-    api_response = {
-        "remaining_days": {
-            "BLUE": 22,
-            "WHITE": 43,
-            "RED": 0,
-        }
-    }
-=======
 async def test_get_remaining_days_success(
     tempo_service: TempoService, mock_redis: MagicMock
 ) -> None:
@@ -256,7 +205,6 @@ async def test_get_remaining_days_success(
                 "libCouleur": "Blanc",
             }
         )
->>>>>>> origin/main
 
     with patch.object(tempo_service, "_get_http_client") as mock_get_client:
         mock_client = MagicMock()
@@ -274,7 +222,6 @@ async def test_get_remaining_days_success(
 
 
 @pytest.mark.asyncio
-<<<<<<< HEAD
 async def test_get_remaining_days_error(tempo_service: TempoService, mock_redis: MagicMock) -> None:
     """Test getting remaining days with API error."""
     with patch.object(tempo_service, "_get_http_client") as mock_get_client:
@@ -301,29 +248,6 @@ async def test_cache_ttl_today(tempo_service: TempoService) -> None:
 
 
 @pytest.mark.asyncio
-=======
->>>>>>> origin/main
-async def test_cache_ttl_tomorrow(tempo_service: TempoService) -> None:
-    """Test cache TTL calculation for tomorrow."""
-    tomorrow = date.today() + timedelta(days=1)
-    ttl = tempo_service._get_cache_ttl(tomorrow)
-
-    # Should be positive
-    assert ttl > 0
-
-
-@pytest.mark.asyncio
-async def test_parse_api_response_valid(tempo_service: TempoService) -> None:
-    """Test parsing valid API response."""
-    target_date = date.today()
-    data = {
-<<<<<<< HEAD
-        "tempo_like_calendars": [
-            {"date": target_date.isoformat(), "value": "WHITE"}
-        ]
-=======
-        "tempo_like_calendars": [{"date": target_date.isoformat(), "value": "WHITE"}]
->>>>>>> origin/main
     }
 
     color = tempo_service._parse_api_response(data, target_date)
@@ -354,10 +278,7 @@ async def test_tempo_calendar_to_dict() -> None:
 
 
 @pytest.mark.asyncio
-<<<<<<< HEAD
-=======
 @pytest.mark.asyncio
->>>>>>> origin/main
 async def test_tempo_calendar_from_dict() -> None:
     """Test TempoCalendar from_dict."""
     data = {"date": "2024-01-15", "color": "BLUE"}
@@ -366,7 +287,4 @@ async def test_tempo_calendar_from_dict() -> None:
 
     assert calendar.date == date(2024, 1, 15)
     assert calendar.color == TempoColor.BLUE
-<<<<<<< HEAD
 
-=======
->>>>>>> origin/main

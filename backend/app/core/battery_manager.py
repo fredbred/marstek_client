@@ -10,10 +10,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.marstek_client import MarstekUDPClient
 from app.models import Battery, BatteryStatusLog
-<<<<<<< HEAD
-from app.models.marstek_api import BatteryStatus, DeviceInfo, ESStatus, ModeInfo
-=======
->>>>>>> origin/main
 
 logger = structlog.get_logger(__name__)
 
@@ -114,13 +110,7 @@ class BatteryManager:
         logger.info("battery_discovery_complete", batteries_found=len(registered))
         return registered
 
-<<<<<<< HEAD
-    async def get_all_status(
-        self, db: AsyncSession
-    ) -> dict[int, dict[str, Any]]:
-=======
     async def get_all_status(self, db: AsyncSession) -> dict[int, dict[str, Any]]:
->>>>>>> origin/main
         """Récupère l'état des 3 batteries en parallèle.
 
         Args:
@@ -130,11 +120,7 @@ class BatteryManager:
             Dictionnaire {battery_id: {status, es_status, mode_info}}
         """
         # Récupérer toutes les batteries actives
-<<<<<<< HEAD
-        stmt = select(Battery).where(Battery.is_active == True)
-=======
         stmt = select(Battery).where(Battery.is_active)
->>>>>>> origin/main
         result = await db.execute(stmt)
         batteries = result.scalars().all()
 
@@ -154,11 +140,7 @@ class BatteryManager:
         # Construire le dictionnaire de résultats
         status_dict: dict[int, dict[str, Any]] = {}
 
-<<<<<<< HEAD
-        for battery, result in zip(batteries, results):
-=======
         for battery, result in zip(batteries, results):  # type: ignore[assignment]
->>>>>>> origin/main
             if isinstance(result, Exception):
                 logger.error(
                     "battery_status_fetch_failed",
@@ -167,21 +149,11 @@ class BatteryManager:
                 )
                 status_dict[battery.id] = {"error": str(result)}
             else:
-<<<<<<< HEAD
-                status_dict[battery.id] = result
-
-        return status_dict
-
-    async def _get_single_battery_status(
-        self, battery: Battery
-    ) -> dict[str, Any]:
-=======
                 status_dict[battery.id] = result  # type: ignore[assignment]
 
         return status_dict
 
     async def _get_single_battery_status(self, battery: Battery) -> dict[str, Any]:
->>>>>>> origin/main
         """Récupère le status d'une seule batterie.
 
         Args:
@@ -209,11 +181,7 @@ class BatteryManager:
                 )
                 result["bat_status"] = None
             else:
-<<<<<<< HEAD
-                result["bat_status"] = bat_status.model_dump()
-=======
                 result["bat_status"] = bat_status.model_dump()  # type: ignore[union-attr]
->>>>>>> origin/main
 
             if isinstance(es_status, Exception):
                 logger.warning(
@@ -223,11 +191,7 @@ class BatteryManager:
                 )
                 result["es_status"] = None
             else:
-<<<<<<< HEAD
-                result["es_status"] = es_status.model_dump()
-=======
                 result["es_status"] = es_status.model_dump()  # type: ignore[union-attr]
->>>>>>> origin/main
 
             if isinstance(mode_info, Exception):
                 logger.warning(
@@ -237,11 +201,7 @@ class BatteryManager:
                 )
                 result["mode_info"] = None
             else:
-<<<<<<< HEAD
-                result["mode_info"] = mode_info.model_dump()
-=======
                 result["mode_info"] = mode_info.model_dump()  # type: ignore[union-attr]
->>>>>>> origin/main
 
             return result
 
@@ -268,11 +228,7 @@ class BatteryManager:
             Dictionnaire {battery_id: success} indiquant le succès pour chaque batterie
         """
         # Récupérer toutes les batteries actives
-<<<<<<< HEAD
-        stmt = select(Battery).where(Battery.is_active == True)
-=======
         stmt = select(Battery).where(Battery.is_active)
->>>>>>> origin/main
         result = await db.execute(stmt)
         batteries = result.scalars().all()
 
@@ -287,13 +243,9 @@ class BatteryManager:
         tasks = []
         for battery in batteries:
             if mode == "auto":
-<<<<<<< HEAD
-                tasks.append(self.client.set_mode_auto(battery.ip_address, battery.udp_port))
-=======
                 tasks.append(
                     self.client.set_mode_auto(battery.ip_address, battery.udp_port)
                 )
->>>>>>> origin/main
             elif mode == "manual":
                 manual_config = mode_config.get("config")
                 if not manual_config:
@@ -325,11 +277,7 @@ class BatteryManager:
         # Construire le dictionnaire de résultats
         success_dict: dict[int, bool] = {}
 
-<<<<<<< HEAD
-        for battery, result in zip(batteries, results):
-=======
         for battery, result in zip(batteries, results):  # type: ignore[assignment]
->>>>>>> origin/main
             if isinstance(result, Exception):
                 logger.error(
                     "mode_set_failed",
@@ -339,11 +287,7 @@ class BatteryManager:
                 )
                 success_dict[battery.id] = False
             else:
-<<<<<<< HEAD
-                success_dict[battery.id] = result
-=======
                 success_dict[battery.id] = result  # type: ignore[assignment]
->>>>>>> origin/main
                 logger.info(
                     "mode_set_success",
                     battery_id=battery.id,
@@ -365,15 +309,9 @@ class BatteryManager:
         status_dict = await self.get_all_status(db)
 
         # Récupérer les batteries pour avoir les IDs
-<<<<<<< HEAD
-        stmt = select(Battery).where(Battery.is_active == True)
-        result = await db.execute(stmt)
-        batteries = {b.id: b for b in result.scalars().all()}
-=======
         stmt = select(Battery).where(Battery.is_active)
         result = await db.execute(stmt)
         {b.id: b for b in result.scalars().all()}
->>>>>>> origin/main
 
         # Créer les logs
         logs_created = 0
@@ -420,7 +358,4 @@ class BatteryManager:
         except Exception as e:
             logger.error("status_log_commit_failed", error=str(e))
             await db.rollback()
-<<<<<<< HEAD
 
-=======
->>>>>>> origin/main

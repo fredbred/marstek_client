@@ -2,18 +2,11 @@
 
 from datetime import datetime
 
-<<<<<<< HEAD
-from sqlalchemy import String, Integer, Float, DateTime, ForeignKey
-from sqlalchemy.orm import Mapped, mapped_column, relationship
-
-from app.models.base import Base
-=======
 from sqlalchemy import DateTime, Float, ForeignKey, Integer, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import Base
 from app.models.battery import Battery
->>>>>>> origin/main
 
 
 class BatteryStatusLog(Base):
@@ -73,7 +66,4 @@ class BatteryStatusLog(Base):
             f"<BatteryStatusLog(battery_id={self.battery_id}, "
             f"timestamp={self.timestamp}, soc={self.soc}%)>"
         )
-<<<<<<< HEAD
 
-=======
->>>>>>> origin/main
