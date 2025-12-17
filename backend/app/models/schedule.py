@@ -52,4 +52,3 @@ class ScheduleConfig(Base):
             f"<ScheduleConfig(id={self.id}, name={self.name}, "
             f"mode_type={self.mode_type}, start={self.start_time}, end={self.end_time})>"
         )
-

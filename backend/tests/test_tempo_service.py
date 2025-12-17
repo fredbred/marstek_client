@@ -28,9 +28,7 @@ def tempo_service(mock_redis: MagicMock) -> TempoService:
 
 @pytest.mark.asyncio
 async def test_get_tempo_color_cache_hit(tempo_service: TempoService, mock_redis: MagicMock) -> None:
-async def test_get_tempo_color_cache_hit(
-    tempo_service: TempoService, mock_redis: MagicMock
-) -> None:
+
     """Test getting Tempo color from cache."""
     target_date = date.today()
 

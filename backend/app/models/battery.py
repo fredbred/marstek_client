@@ -52,4 +52,3 @@ class Battery(Base):
     def __repr__(self) -> str:
         """String representation."""
         return f"<Battery(id={self.id}, name={self.name}, ip={self.ip_address})>"
-

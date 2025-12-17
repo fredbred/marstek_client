@@ -53,9 +53,7 @@ class ModeController:
         total_count = len(results)
 
         if success_count < total_count:
-            failed_batteries = [
-                bid for bid, success in results.items() if not success
-            ]
+            failed_batteries = [bid for bid, success in results.items() if not success]
             failed_batteries = [bid for bid, success in results.items() if not success]
 
             logger.warning(
@@ -254,4 +252,3 @@ class ModeController:
                 error=str(e),
                 title=title,
             )
-

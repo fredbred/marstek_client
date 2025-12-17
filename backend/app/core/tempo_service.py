@@ -384,4 +384,3 @@ class TempoService:
     async def __aexit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> None:
         """Context manager exit."""
         await self.close()
-

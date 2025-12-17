@@ -51,7 +51,6 @@ def init_scheduler() -> AsyncIOScheduler:
     db_url = settings.database.url.replace("+asyncpg", "").replace(
         "postgresql+asyncpg", "postgresql"
     )
-    
 
     # Si l'URL contient encore asyncpg, la remplacer
     if "+asyncpg" in db_url:
@@ -155,6 +154,7 @@ def _setup_shutdown_handlers() -> None:
         logger.info("shutdown_signal_received", signal=signum)
         if _scheduler and _scheduler.running:
             import asyncio
+
             try:
                 loop = asyncio.get_event_loop()
                 if loop.is_running():
@@ -223,4 +223,3 @@ def stop_scheduler() -> None:
 
     _scheduler.shutdown(wait=False)
     logger.info("scheduler_stopped")
-

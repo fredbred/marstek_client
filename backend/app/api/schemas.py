@@ -42,7 +42,6 @@ class BatteryStatusResponse(BaseModel):
     offgrid_power: float | None = Field(default=None, description="Off-grid power [W]")
     mode: str = Field(description="Current mode")
     bat_temp: float | None = Field(default=None, description="Battery temperature [°C]")
-    bat_capacity: float | None = Field(default=None, description="Battery capacity [Wh]")
     bat_capacity: float | None = Field(
         default=None, description="Battery capacity [Wh]"
     )

@@ -358,4 +358,3 @@ class BatteryManager:
         except Exception as e:
             logger.error("status_log_commit_failed", error=str(e))
             await db.rollback()
-
