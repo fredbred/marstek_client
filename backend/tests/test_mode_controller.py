@@ -121,12 +121,8 @@ async def test_activate_tempo_precharge(
 
     assert results == {1: True, 2: True, 3: True}
     mock_battery_manager.set_mode_all.assert_called_once()
-<<<<<<< HEAD
-    mock_notification_service.send_notification.assert_called_once()
-=======
     # switch_to_auto_mode sends a notification, then activate_tempo_precharge sends another
     assert mock_notification_service.send_notification.call_count == 2
->>>>>>> origin/main
 
 
 @pytest.mark.asyncio
@@ -195,7 +191,4 @@ async def test_mode_controller_no_notification_service(
     results = await controller.switch_to_auto_mode(mock_db)
 
     assert results == {1: True, 2: True}
-<<<<<<< HEAD
 
-=======
->>>>>>> origin/main

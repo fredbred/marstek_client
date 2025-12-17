@@ -1,11 +1,7 @@
 """Tests for BatteryManager."""
 
-<<<<<<< HEAD
 from datetime import datetime
 from unittest.mock import AsyncMock, MagicMock, patch
-=======
-from unittest.mock import AsyncMock, MagicMock
->>>>>>> origin/main
 
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -199,13 +195,9 @@ async def test_get_all_status_partial_failure(
     mock_db.execute.return_value = result_mock
 
     # First battery succeeds, second fails
-<<<<<<< HEAD
     bat_status = BatteryStatus(
         id=0, soc=98, charg_flag=True, dischrg_flag=True
     )
-=======
-    bat_status = BatteryStatus(id=0, soc=98, charg_flag=True, dischrg_flag=True)
->>>>>>> origin/main
     es_status = ESStatus(id=0, bat_soc=98)
     mode_info = ModeInfo(id=0, mode="Auto")
 
@@ -219,14 +211,10 @@ async def test_get_all_status_partial_failure(
     status_dict = await battery_manager.get_all_status(mock_db)
 
     assert len(status_dict) == 2
-<<<<<<< HEAD
-    assert "error" in status_dict[2]  # Second battery has error
-=======
     # When all status calls fail, result contains None values
     assert status_dict[2]["bat_status"] is None
     assert status_dict[2]["es_status"] is None
     assert status_dict[2]["mode_info"] is None
->>>>>>> origin/main
 
 
 @pytest.mark.asyncio
@@ -321,7 +309,4 @@ async def test_log_status_to_db(
     # Verify logs were created
     assert mock_db.add.call_count == 2  # One log per battery
     mock_db.commit.assert_called_once()
-<<<<<<< HEAD
 
-=======
->>>>>>> origin/main

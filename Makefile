@@ -3,16 +3,18 @@
 help:
 	@echo "Marstek Automation - Available commands:"
 	@echo ""
-	@echo "  make build        - Build Docker images"
-	@echo "  make up           - Start all services"
-	@echo "  make down         - Stop all services"
-	@echo "  make logs         - Show logs from all services"
-	@echo "  make restart      - Restart all services"
-	@echo "  make clean        - Remove containers and volumes"
-	@echo "  make test         - Run tests"
-	@echo "  make lint         - Run linters"
-	@echo "  make format       - Format code"
-	@echo "  make discover     - Discover batteries on network"
+	@echo "  make build           - Build Docker images"
+	@echo "  make up              - Start all services"
+	@echo "  make down            - Stop all services"
+	@echo "  make logs            - Show logs from all services"
+	@echo "  make restart         - Restart all services"
+	@echo "  make clean           - Remove containers and volumes"
+	@echo "  make test            - Run tests"
+	@echo "  make lint            - Run linters"
+	@echo "  make format          - Format code"
+	@echo "  make discover        - Discover batteries on network"
+	@echo "  make check-conflicts - Check for Git merge conflicts"
+	@echo "  make resolve-conflicts - Auto-resolve simple conflicts"
 	@echo ""
 
 build:
@@ -45,6 +47,12 @@ format:
 
 discover:
 	python scripts/discover_batteries.py
+
+check-conflicts:
+	@./scripts/check-conflicts.sh
+
+resolve-conflicts:
+	@python3 scripts/resolve-conflicts.py
 
 setup:
 	cp env.template .env

@@ -5,11 +5,7 @@ from datetime import date, timedelta
 import structlog
 from fastapi import APIRouter, Depends, HTTPException
 
-<<<<<<< HEAD
-from app.core.tempo_service import TempoCalendar, TempoColor, TempoService
-=======
 from app.core.tempo_service import TempoCalendar, TempoService
->>>>>>> origin/main
 
 logger = structlog.get_logger(__name__)
 router = APIRouter(prefix="/tempo", tags=["tempo"])
@@ -41,13 +37,9 @@ async def get_tempo_today(
 
     except Exception as e:
         logger.error("tempo_api_today_error", error=str(e))
-<<<<<<< HEAD
-        raise HTTPException(status_code=500, detail=f"Error fetching Tempo data: {str(e)}")
-=======
         raise HTTPException(
             status_code=500, detail=f"Error fetching Tempo data: {str(e)}"
         )
->>>>>>> origin/main
 
 
 @router.get("/tomorrow", response_model=dict)
@@ -73,13 +65,9 @@ async def get_tempo_tomorrow(
 
     except Exception as e:
         logger.error("tempo_api_tomorrow_error", error=str(e))
-<<<<<<< HEAD
-        raise HTTPException(status_code=500, detail=f"Error fetching Tempo data: {str(e)}")
-=======
         raise HTTPException(
             status_code=500, detail=f"Error fetching Tempo data: {str(e)}"
         )
->>>>>>> origin/main
 
 
 @router.get("/precharge", response_model=dict)
@@ -108,13 +96,9 @@ async def should_activate_precharge(
 
     except Exception as e:
         logger.error("tempo_api_precharge_error", error=str(e))
-<<<<<<< HEAD
-        raise HTTPException(status_code=500, detail=f"Error checking precharge: {str(e)}")
-=======
         raise HTTPException(
             status_code=500, detail=f"Error checking precharge: {str(e)}"
         )
->>>>>>> origin/main
 
 
 @router.get("/remaining", response_model=dict)
@@ -135,11 +119,6 @@ async def get_remaining_days(
 
     except Exception as e:
         logger.error("tempo_api_remaining_error", error=str(e))
-<<<<<<< HEAD
-        raise HTTPException(status_code=500, detail=f"Error fetching remaining days: {str(e)}")
-
-=======
         raise HTTPException(
             status_code=500, detail=f"Error fetching remaining days: {str(e)}"
         )
->>>>>>> origin/main

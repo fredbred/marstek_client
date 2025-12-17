@@ -2,27 +2,18 @@
 
 import structlog
 from fastapi import APIRouter, Depends, HTTPException, Request, status
-<<<<<<< HEAD
-from slowapi import Limiter, _rate_limit_exceeded_handler
-from slowapi.errors import RateLimitExceeded
-=======
 from slowapi import Limiter
->>>>>>> origin/main
 from slowapi.util import get_remote_address
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.dependencies import get_db_session
-<<<<<<< HEAD
-from app.api.schemas import MessageResponse, ScheduleCreate, ScheduleResponse, ScheduleUpdate
-=======
 from app.api.schemas import (
     MessageResponse,
     ScheduleCreate,
     ScheduleResponse,
     ScheduleUpdate,
 )
->>>>>>> origin/main
 from app.models import ScheduleConfig
 
 logger = structlog.get_logger(__name__)
@@ -139,13 +130,9 @@ async def update_schedule(
         await db.commit()
         await db.refresh(schedule)
 
-<<<<<<< HEAD
-        logger.info("schedule_updated", schedule_id=schedule_id, fields=list(update_data.keys()))
-=======
         logger.info(
             "schedule_updated", schedule_id=schedule_id, fields=list(update_data.keys())
         )
->>>>>>> origin/main
 
         return ScheduleResponse.model_validate(schedule)
 
