@@ -50,7 +50,12 @@ async def test_init_scheduler() -> None:
 @pytest.mark.asyncio
 async def test_job_switch_to_auto(db_session) -> None:
     """Test job_switch_to_auto execution."""
-    with patch("app.scheduler.jobs.ModeController") as mock_controller_class:
+    mock_db = MagicMock()
+    mock_db.__aenter__ = AsyncMock(return_value=db_session)
+    mock_db.__aexit__ = AsyncMock(return_value=None)
+    
+    with patch("app.scheduler.jobs.async_session_maker", return_value=mock_db), \
+         patch("app.scheduler.jobs.ModeController") as mock_controller_class:
         mock_controller = MagicMock()
         mock_controller.switch_to_auto_mode = AsyncMock(
             return_value={1: True, 2: True, 3: True}
@@ -65,7 +70,7 @@ async def test_job_switch_to_auto(db_session) -> None:
 @pytest.mark.asyncio
 async def test_job_switch_to_manual_night(db_session) -> None:
     """Test job_switch_to_manual_night execution."""
-    with patch("app.scheduler.jobs.ModeController") as mock_controller_class:
+    with patch("app.core.mode_controller.ModeController") as mock_controller_class:
         mock_controller = MagicMock()
         mock_controller.switch_to_manual_night = AsyncMock(
             return_value={1: True, 2: True, 3: True}
@@ -78,8 +83,10 @@ async def test_job_switch_to_manual_night(db_session) -> None:
 @pytest.mark.asyncio
 async def test_job_check_tempo_tomorrow() -> None:
     """Test job_check_tempo_tomorrow execution."""
-    with patch("app.scheduler.jobs.TempoService") as mock_service_class:
+    with patch("app.core.tempo_service.TempoService") as mock_service_class:
         mock_service = MagicMock()
+        mock_service.__aenter__ = AsyncMock(return_value=mock_service)
+        mock_service.__aexit__ = AsyncMock(return_value=None)
         mock_service.should_activate_precharge = AsyncMock(return_value=True)
         mock_service.get_tomorrow_color = AsyncMock(return_value=None)
         mock_service_class.return_value = mock_service
@@ -88,7 +95,7 @@ async def test_job_check_tempo_tomorrow() -> None:
 
         mock_service.should_activate_precharge.assert_called_once()
 
-    with patch("app.scheduler.jobs.ModeController") as mock_mode_controller_class:
+    with patch("app.core.mode_controller.ModeController") as mock_mode_controller_class:
         mock_mode_controller = MagicMock()
         mock_mode_controller.activate_tempo_precharge = AsyncMock(
             return_value={1: True, 2: True, 3: True}

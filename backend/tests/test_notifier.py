@@ -46,7 +46,7 @@ def sample_battery() -> Battery:
     )
 
 
-@patch("app.notifications.notifier.get_settings")
+@patch("app.notifications.notifier._get_settings")
 @patch("app.notifications.notifier.Apprise")
 def test_notifier_init(
     mock_apprise_class: MagicMock,
@@ -54,6 +54,12 @@ def test_notifier_init(
     mock_settings: MagicMock,
 ) -> None:
     """Test Notifier initialization."""
+    mock_settings = MagicMock()
+    mock_settings.notification.enabled = True
+    mock_settings.notification.telegram_enabled = True
+    mock_settings.notification.telegram_bot_token = "test_token"
+    mock_settings.notification.telegram_chat_id = "test_chat_id"
+    mock_settings.notification.urls = None
     mock_get_settings.return_value = mock_settings
     mock_apprise_instance = MagicMock()
     mock_apprise_class.return_value = mock_apprise_instance
@@ -65,7 +71,7 @@ def test_notifier_init(
     mock_apprise_instance.add.assert_called_once()
 
 
-@patch("app.notifications.notifier.get_settings")
+@patch("app.notifications.notifier._get_settings")
 @patch("app.notifications.notifier.Apprise")
 def test_notifier_init_disabled(
     mock_apprise_class: MagicMock, mock_get_settings: MagicMock
@@ -81,7 +87,7 @@ def test_notifier_init_disabled(
     mock_apprise_class.assert_not_called()
 
 
-@patch("app.notifications.notifier.get_settings")
+@patch("app.notifications.notifier._get_settings")
 @patch("app.notifications.notifier.Apprise")
 @pytest.mark.asyncio
 async def test_send_info(
@@ -102,7 +108,7 @@ async def test_send_info(
     mock_apprise.notify.assert_called_once()
 
 
-@patch("app.notifications.notifier.get_settings")
+@patch("app.notifications.notifier._get_settings")
 @patch("app.notifications.notifier.Apprise")
 @pytest.mark.asyncio
 async def test_send_warning(
@@ -123,7 +129,7 @@ async def test_send_warning(
     mock_apprise.notify.assert_called_once()
 
 
-@patch("app.notifications.notifier.get_settings")
+@patch("app.notifications.notifier._get_settings")
 @patch("app.notifications.notifier.Apprise")
 @pytest.mark.asyncio
 async def test_send_error(
@@ -144,7 +150,7 @@ async def test_send_error(
     mock_apprise.notify.assert_called_once()
 
 
-@patch("app.notifications.notifier.get_settings")
+@patch("app.notifications.notifier._get_settings")
 @patch("app.notifications.notifier.Apprise")
 @pytest.mark.asyncio
 async def test_notify_mode_changed(
@@ -169,7 +175,7 @@ async def test_notify_mode_changed(
     assert "Auto" in call_args[1]["body"]
 
 
-@patch("app.notifications.notifier.get_settings")
+@patch("app.notifications.notifier._get_settings")
 @patch("app.notifications.notifier.Apprise")
 @pytest.mark.asyncio
 async def test_notify_tempo_alert_red(
@@ -196,7 +202,7 @@ async def test_notify_tempo_alert_red(
     assert "TEMPO ROUGE" in call_args[1]["body"]
 
 
-@patch("app.notifications.notifier.get_settings")
+@patch("app.notifications.notifier._get_settings")
 @patch("app.notifications.notifier.Apprise")
 @pytest.mark.asyncio
 async def test_notify_tempo_alert_blue(
@@ -221,7 +227,7 @@ async def test_notify_tempo_alert_blue(
     assert "TEMPO BLEU" in call_args[1]["body"]
 
 
-@patch("app.notifications.notifier.get_settings")
+@patch("app.notifications.notifier._get_settings")
 @patch("app.notifications.notifier.Apprise")
 @pytest.mark.asyncio
 async def test_notify_battery_issue(
@@ -246,7 +252,7 @@ async def test_notify_battery_issue(
     assert sample_battery.name in call_args[1]["body"]
 
 
-@patch("app.notifications.notifier.get_settings")
+@patch("app.notifications.notifier._get_settings")
 @patch("app.notifications.notifier.Apprise")
 @pytest.mark.asyncio
 async def test_notify_battery_low_soc(
@@ -271,7 +277,7 @@ async def test_notify_battery_low_soc(
     assert "15" in call_args[1]["body"]
 
 
-@patch("app.notifications.notifier.get_settings")
+@patch("app.notifications.notifier._get_settings")
 @patch("app.notifications.notifier.Apprise")
 @pytest.mark.asyncio
 async def test_notify_battery_offline(
@@ -296,7 +302,7 @@ async def test_notify_battery_offline(
     assert "Batterie Hors Ligne" in call_args[1]["body"]
 
 
-@patch("app.notifications.notifier.get_settings")
+@patch("app.notifications.notifier._get_settings")
 @patch("app.notifications.notifier.Apprise")
 @pytest.mark.asyncio
 async def test_notifications_disabled(
@@ -318,7 +324,7 @@ async def test_notifications_disabled(
     mock_apprise.notify.assert_not_called()
 
 
-@patch("app.notifications.notifier.get_settings")
+@patch("app.notifications.notifier._get_settings")
 @patch("app.notifications.notifier.Apprise")
 @pytest.mark.asyncio
 async def test_notify_tempo_white_no_alert(

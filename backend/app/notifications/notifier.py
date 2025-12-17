@@ -13,7 +13,11 @@ if TYPE_CHECKING:
     from app.models import Battery
 
 logger = structlog.get_logger(__name__)
-settings = get_settings()
+
+
+def _get_settings():
+    """Get settings (can be mocked in tests)."""
+    return get_settings()
 
 
 # Message templates
@@ -77,6 +81,9 @@ class Notifier:
     """Notification service using Apprise."""
 
     def __init__(self) -> None:
+        settings = _get_settings()
+        settings = _get_settings()
+        settings = _get_settings()
         self.enabled = settings.notification.enabled
 
         if not self.enabled:
