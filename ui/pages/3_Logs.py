@@ -7,6 +7,29 @@ import streamlit as st
 
 from utils import fetch_logs
 
+
+# #region agent log
+def _debug_log(hypothesis_id, location, message, data=None):
+    """Helper function for debug logging."""
+    try:
+        import json
+        from datetime import datetime
+        log_path = "/app/.cursor/debug.log"
+        log_entry = {
+            "sessionId": "debug-session",
+            "runId": "run1",
+            "hypothesisId": hypothesis_id,
+            "location": location,
+            "message": message,
+            "data": data or {},
+            "timestamp": int(datetime.now().timestamp() * 1000)
+        }
+        with open(log_path, "a") as f:
+            f.write(json.dumps(log_entry) + "\n")
+    except Exception:
+        pass
+# #endregion
+
 st.title("📋 Historique")
 
 # Filters
@@ -43,7 +66,20 @@ else:
     end_date = date.today()
 
 with st.spinner("Chargement des logs..."):
-    logs_df = fetch_logs(start_date, end_date)
+        # #region agent log
+        _debug_log("B", "pages/3_Logs.py:logs:before", "Before fetch_logs", {"start_date": str(start_date), "end_date": str(end_date)})
+        # #endregion
+        try:
+            logs_df = fetch_logs(start_date, end_date)
+            # #region agent log
+            _debug_log("B", "pages/3_Logs.py:logs:after", "After fetch_logs", {"empty": logs_df.empty, "rows": len(logs_df) if not logs_df.empty else 0})
+            # #endregion
+        except Exception as e:
+            # #region agent log
+            _debug_log("B", "pages/3_Logs.py:logs:error", "fetch_logs failed", {"error": str(e), "error_type": type(e).__name__})
+            # #endregion
+            st.error(f"Erreur lors du chargement des logs: {e}")
+            logs_df = pd.DataFrame()
 
 # Display logs
 st.subheader("Logs")

@@ -9,8 +9,30 @@ import pandas as pd
 import streamlit as st
 
 # API base URL
-API_BASE_URL = os.getenv("API_BASE_URL", "http://backend:8000")
+API_BASE_URL = os.getenv("API_URL", os.getenv("API_BASE_URL", "http://localhost:8000"))
 API_TIMEOUT = 30.0
+
+# #region agent log
+def _debug_log(hypothesis_id, location, message, data=None):
+    """Helper function for debug logging."""
+    try:
+        import json
+        from datetime import datetime
+        log_path = "/app/.cursor/debug.log"
+        log_entry = {
+            "sessionId": "debug-session",
+            "runId": "run1",
+            "hypothesisId": hypothesis_id,
+            "location": location,
+            "message": message,
+            "data": data or {},
+            "timestamp": int(datetime.now().timestamp() * 1000)
+        }
+        with open(log_path, "a") as f:
+            f.write(json.dumps(log_entry) + "\n")
+    except Exception:
+        pass
+# #endregion
 
 
 @st.cache_data(ttl=5)
@@ -26,21 +48,32 @@ def check_api_health() -> bool:
     except Exception:
         return False
 
-
 def fetch_batteries() -> list[dict[str, Any]]:
     """Fetch list of batteries from API.
 
     Returns:
         List of battery dictionaries
     """
+    # #region agent log
+    _debug_log("A", "utils.py:fetch_batteries:entry", "fetch_batteries called", {"api_base_url": API_BASE_URL})
+    # #endregion
     try:
         response = httpx.get(f"{API_BASE_URL}/api/v1/batteries", timeout=API_TIMEOUT)
+        # #region agent log
+        _debug_log("D", "utils.py:fetch_batteries:response", "API response received", {"status_code": response.status_code})
+        # #endregion
         response.raise_for_status()
-        return response.json()
+        result = response.json()
+        # #region agent log
+        _debug_log("A", "utils.py:fetch_batteries:success", "fetch_batteries success", {"count": len(result) if result else 0})
+        # #endregion
+        return result
     except Exception as e:
+        # #region agent log
+        _debug_log("A", "utils.py:fetch_batteries:error", "fetch_batteries failed", {"error": str(e), "error_type": type(e).__name__})
+        # #endregion
         st.error(f"Erreur lors de la récupération des batteries: {e}")
         return []
-
 
 def fetch_battery_status(battery_id: int) -> dict[str, Any] | None:
     """Fetch status of a specific battery.
@@ -60,7 +93,6 @@ def fetch_battery_status(battery_id: int) -> dict[str, Any] | None:
     except Exception as e:
         st.error(f"Erreur lors de la récupération du status de la batterie {battery_id}: {e}")
         return None
-
 
 def fetch_batteries_status() -> list[dict[str, Any]]:
     """Fetch status of all batteries.
@@ -92,7 +124,6 @@ def fetch_batteries_status() -> list[dict[str, Any]]:
 
     return statuses
 
-
 def fetch_current_mode() -> str:
     """Fetch current mode of all batteries.
 
@@ -115,7 +146,6 @@ def fetch_current_mode() -> str:
         st.error(f"Erreur lors de la récupération du mode: {e}")
         return "Unknown"
 
-
 def fetch_power_history(hours: int = 24) -> pd.DataFrame:
     """Fetch power history for chart.
 
@@ -127,15 +157,22 @@ def fetch_power_history(hours: int = 24) -> pd.DataFrame:
     """
     # TODO: Implement when history endpoint is available
     # For now, return empty DataFrame
-    return pd.DataFrame(
-        {
-            "timestamp": pd.date_range(
-                datetime.now() - timedelta(hours=hours), datetime.now(), freq="H"
-            ),
-            "power": [0] * hours,
-        }
-    )
-
+    try:
+        # Create date range and ensure same length
+        end_time = datetime.now()
+        start_time = end_time - timedelta(hours=hours)
+        timestamps = pd.date_range(start=start_time, end=end_time, freq="H", inclusive="left")
+        # Ensure power array matches timestamp length
+        power_values = [0] * len(timestamps)
+        return pd.DataFrame(
+            {
+                "timestamp": timestamps,
+                "power": power_values,
+            }
+        )
+    except Exception:
+        # Return empty DataFrame on error
+        return pd.DataFrame(columns=["timestamp", "power"])
 
 def fetch_tempo_today() -> str:
     """Fetch today's Tempo color.
@@ -152,7 +189,6 @@ def fetch_tempo_today() -> str:
         st.error(f"Erreur lors de la récupération de la couleur Tempo: {e}")
         return "UNKNOWN"
 
-
 def fetch_tempo_tomorrow() -> str:
     """Fetch tomorrow's Tempo color.
 
@@ -168,7 +204,6 @@ def fetch_tempo_tomorrow() -> str:
         st.error(f"Erreur lors de la récupération de la couleur Tempo demain: {e}")
         return "UNKNOWN"
 
-
 def fetch_tempo_calendar(start_date: date, end_date: date) -> pd.DataFrame:
     """Fetch Tempo calendar for date range.
 
@@ -179,19 +214,31 @@ def fetch_tempo_calendar(start_date: date, end_date: date) -> pd.DataFrame:
     Returns:
         DataFrame with Tempo calendar data
     """
+    # #region agent log
+    _debug_log("B", "utils.py:fetch_tempo_calendar:entry", "fetch_tempo_calendar called", {"start_date": str(start_date), "end_date": str(end_date)})
+    # #endregion
     try:
         response = httpx.get(
             f"{API_BASE_URL}/api/v1/tempo/calendar",
             params={"start_date": start_date.isoformat(), "end_date": end_date.isoformat()},
             timeout=API_TIMEOUT,
         )
+        # #region agent log
+        _debug_log("D", "utils.py:fetch_tempo_calendar:response", "API response received", {"status_code": response.status_code})
+        # #endregion
         response.raise_for_status()
         data = response.json()
-        return pd.DataFrame(data)
+        df = pd.DataFrame(data)
+        # #region agent log
+        _debug_log("B", "utils.py:fetch_tempo_calendar:success", "fetch_tempo_calendar success", {"rows": len(df), "columns": list(df.columns) if not df.empty else []})
+        # #endregion
+        return df
     except Exception as e:
+        # #region agent log
+        _debug_log("B", "utils.py:fetch_tempo_calendar:error", "fetch_tempo_calendar failed", {"error": str(e), "error_type": type(e).__name__})
+        # #endregion
         st.error(f"Erreur lors de la récupération du calendrier Tempo: {e}")
         return pd.DataFrame()
-
 
 def set_auto_mode() -> bool:
     """Set all batteries to AUTO mode.
@@ -206,7 +253,6 @@ def set_auto_mode() -> bool:
     except Exception as e:
         st.error(f"Erreur lors du passage en mode AUTO: {e}")
         return False
-
 
 def set_manual_mode() -> bool:
     """Set all batteries to MANUAL mode.
@@ -233,7 +279,6 @@ def set_manual_mode() -> bool:
         st.error(f"Erreur lors du passage en mode MANUAL: {e}")
         return False
 
-
 def fetch_schedules() -> list[dict[str, Any]]:
     """Fetch list of schedules.
 
@@ -247,7 +292,6 @@ def fetch_schedules() -> list[dict[str, Any]]:
     except Exception as e:
         st.error(f"Erreur lors de la récupération des schedules: {e}")
         return []
-
 
 def save_schedule(schedule_data: dict[str, Any]) -> bool:
     """Save a schedule.
@@ -268,7 +312,6 @@ def save_schedule(schedule_data: dict[str, Any]) -> bool:
         st.error(f"Erreur lors de la sauvegarde du schedule: {e}")
         return False
 
-
 def fetch_logs(start_date: date, end_date: date) -> pd.DataFrame:
     """Fetch logs for date range.
 
@@ -279,8 +322,14 @@ def fetch_logs(start_date: date, end_date: date) -> pd.DataFrame:
     Returns:
         DataFrame with logs
     """
+    # #region agent log
+    _debug_log("B", "utils.py:fetch_logs:entry", "fetch_logs called", {"start_date": str(start_date), "end_date": str(end_date)})
+    # #endregion
     # TODO: Implement when logs endpoint is available
     # For now, return empty DataFrame
+    # #region agent log
+    _debug_log("B", "utils.py:fetch_logs:empty", "fetch_logs returning empty DataFrame (not implemented)")
+    # #endregion
     return pd.DataFrame(
         {
             "timestamp": [],

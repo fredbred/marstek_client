@@ -6,6 +6,29 @@ import streamlit as st
 
 from utils import fetch_schedules, save_schedule
 
+
+# #region agent log
+def _debug_log(hypothesis_id, location, message, data=None):
+    """Helper function for debug logging."""
+    try:
+        import json
+        from datetime import datetime
+        log_path = "/app/.cursor/debug.log"
+        log_entry = {
+            "sessionId": "debug-session",
+            "runId": "run1",
+            "hypothesisId": hypothesis_id,
+            "location": location,
+            "message": message,
+            "data": data or {},
+            "timestamp": int(datetime.now().timestamp() * 1000)
+        }
+        with open(log_path, "a") as f:
+            f.write(json.dumps(log_entry) + "\n")
+    except Exception:
+        pass
+# #endregion
+
 st.title("⚙️ Configuration")
 
 # Section horaires Auto/Manuel

@@ -7,6 +7,29 @@ import streamlit as st
 
 from utils import fetch_tempo_calendar, fetch_tempo_today, fetch_tempo_tomorrow
 
+
+# #region agent log
+def _debug_log(hypothesis_id, location, message, data=None):
+    """Helper function for debug logging."""
+    try:
+        import json
+        from datetime import datetime
+        log_path = "/app/.cursor/debug.log"
+        log_entry = {
+            "sessionId": "debug-session",
+            "runId": "run1",
+            "hypothesisId": hypothesis_id,
+            "location": location,
+            "message": message,
+            "data": data or {},
+            "timestamp": int(datetime.now().timestamp() * 1000)
+        }
+        with open(log_path, "a") as f:
+            f.write(json.dumps(log_entry) + "\n")
+    except Exception:
+        pass
+# #endregion
+
 st.title("📅 Calendrier Tempo")
 
 # Today and tomorrow
@@ -58,7 +81,20 @@ else:
 
 # Fetch calendar data
 with st.spinner("Chargement du calendrier Tempo..."):
-    calendar_data = fetch_tempo_calendar(start_date, end_date)
+        # #region agent log
+        _debug_log("B", "pages/2_Tempo.py:calendar:before", "Before fetch_tempo_calendar", {"start_date": str(start_date), "end_date": str(end_date)})
+        # #endregion
+        try:
+            calendar_data = fetch_tempo_calendar(start_date, end_date)
+            # #region agent log
+            _debug_log("B", "pages/2_Tempo.py:calendar:after", "After fetch_tempo_calendar", {"empty": calendar_data.empty, "rows": len(calendar_data) if not calendar_data.empty else 0})
+            # #endregion
+        except Exception as e:
+            # #region agent log
+            _debug_log("B", "pages/2_Tempo.py:calendar:error", "fetch_tempo_calendar failed", {"error": str(e), "error_type": type(e).__name__})
+            # #endregion
+            st.error(f"Erreur lors du chargement du calendrier: {e}")
+            calendar_data = pd.DataFrame()
 
 if not calendar_data.empty:
     # Create calendar view
