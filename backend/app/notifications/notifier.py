@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING
 import structlog
 from apprise import Apprise
 
-from app.config import get_settings
+from app.config import Settings, get_settings
 from app.core.tempo_service import TempoColor
 
 if TYPE_CHECKING:
@@ -15,8 +15,12 @@ if TYPE_CHECKING:
 logger = structlog.get_logger(__name__)
 
 
-def _get_settings():
-    """Get settings (can be mocked in tests)."""
+def _get_settings() -> Settings:
+    """Get settings (can be mocked in tests).
+
+    Returns:
+        Settings instance
+    """
     return get_settings()
 
 

@@ -53,9 +53,10 @@ async def test_job_switch_to_auto(db_session) -> None:
     mock_db = MagicMock()
     mock_db.__aenter__ = AsyncMock(return_value=db_session)
     mock_db.__aexit__ = AsyncMock(return_value=None)
-    
-    with patch("app.scheduler.jobs.async_session_maker", return_value=mock_db), \
-         patch("app.scheduler.jobs.ModeController") as mock_controller_class:
+
+    with patch("app.scheduler.jobs.async_session_maker", return_value=mock_db), patch(
+        "app.scheduler.jobs.ModeController"
+    ) as mock_controller_class:
         mock_controller = MagicMock()
         mock_controller.switch_to_auto_mode = AsyncMock(
             return_value={1: True, 2: True, 3: True}

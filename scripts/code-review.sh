@@ -52,7 +52,7 @@ if command -v docker &> /dev/null && [ -f "docker-compose.yml" ]; then
     echo ""
     
     echo "🔍 Vérification MyPy (types)..."
-    if run_with_dev "poetry run mypy app --ignore-missing-imports --python-version=3.11" 2>&1; then
+    if run_with_dev "poetry run mypy app --ignore-missing-imports" 2>&1; then
         echo "✅ MyPy: OK"
     else
         echo "⚠️  MyPy: Avertissements de types détectés"
@@ -66,28 +66,28 @@ if command -v docker &> /dev/null && [ -f "docker-compose.yml" ]; then
     
     if [ "$BLACK_ERRORS" = true ]; then
         echo "❌ Black: Erreurs détectées"
-        echo "   Corriger avec: docker compose run --rm backend sh -c 'cd /app && poetry install --with dev --no-root && poetry run black app'"
+        echo "   Corriger avec: docker compose run --rm backend sh -c 'cd /app && poetry install --with dev --no-root && poetry run black app tests'"
     else
         echo "✅ Black: OK"
     fi
     
     if [ "$ISORT_ERRORS" = true ]; then
         echo "❌ isort: Erreurs détectées"
-        echo "   Corriger avec: docker compose run --rm backend sh -c 'cd /app && poetry install --with dev --no-root && poetry run isort app'"
+        echo "   Corriger avec: docker compose run --rm backend sh -c 'cd /app && poetry install --with dev --no-root && poetry run isort app tests'"
     else
         echo "✅ isort: OK"
     fi
     
     if [ "$RUFF_ERRORS" = true ]; then
         echo "❌ Ruff: Erreurs détectées"
-        echo "   Corriger avec: docker compose run --rm backend sh -c 'cd /app && poetry install --with dev --no-root && poetry run ruff check --fix app'"
+        echo "   Corriger avec: docker compose run --rm backend sh -c 'cd /app && poetry install --with dev --no-root && poetry run ruff check --fix app tests'"
     else
         echo "✅ Ruff: OK"
     fi
     
     if [ "$MYPY_WARNINGS" = true ]; then
         echo "⚠️  MyPy: Avertissements détectés"
-        echo "   Vérifier: docker compose run --rm backend sh -c 'cd /app && poetry install --with dev --no-root && poetry run mypy app --ignore-missing-imports --python-version=3.11'"
+        echo "   Vérifier: docker compose run --rm backend sh -c 'cd /app && poetry install --with dev --no-root && poetry run mypy app --ignore-missing-imports'"
     else
         echo "✅ MyPy: OK"
     fi
@@ -112,6 +112,6 @@ else
     echo "  poetry run black --check app"
     echo "  poetry run isort --check-only app"
     echo "  poetry run ruff check app"
-    echo "  poetry run mypy app --ignore-missing-imports --python-version=3.11"
+    echo "  poetry run mypy app --ignore-missing-imports"
     exit 1
 fi
