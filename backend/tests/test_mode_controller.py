@@ -191,4 +191,3 @@ async def test_mode_controller_no_notification_service(
     results = await controller.switch_to_auto_mode(mock_db)
 
     assert results == {1: True, 2: True}
-

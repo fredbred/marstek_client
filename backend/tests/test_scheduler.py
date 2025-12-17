@@ -12,7 +12,6 @@ from app.scheduler.jobs import (
     job_switch_to_auto,
     job_switch_to_manual_night,
 )
-from app.scheduler.scheduler import get_scheduler, init_scheduler, shutdown_scheduler
 from app.scheduler.scheduler import init_scheduler, shutdown_scheduler
 
 
@@ -171,13 +170,6 @@ async def test_scheduler_job_registration() -> None:
         job_ids = [job.id for job in jobs]
 
         # Check that expected jobs are registered
-        expected_jobs = [
-            "switch_to_auto",
-            "switch_to_manual_night",
-            "check_tempo_tomorrow",
-            "monitor_batteries",
-            "health_check",
-        ]
 
         # At least some of these should be present
         assert len(job_ids) > 0

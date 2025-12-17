@@ -239,12 +239,12 @@ class TempoService:
             return TempoColor.UNKNOWN
 
     def _parse_api_response(
-        self, data: dict[str, Any], target_date: date
+        self, data: dict[str, Any] | list[dict[str, Any]], target_date: date
     ) -> TempoColor:
         """Parse la réponse de l'API RTE.
 
         Args:
-            data: Réponse JSON de l'API
+            data: Réponse JSON de l'API (dict avec tempo_like_calendars ou liste directe)
             target_date: Date cible
 
         Returns:
@@ -253,8 +253,29 @@ class TempoService:
         Raises:
             ValueError: Si le format de réponse est inattendu
         """
-        # Format attendu : {"tempo_like_calendars": [{"date": "2024-01-15", "value": "RED"}]}
-        # Ou : {"tempo_like_calendars": [{"date": "2024-01-15", "color": "RED"}]}
+        # Format 1: Liste directe avec dateJour/libCouleur (format api-couleur-tempo.fr)
+        if isinstance(data, list):
+            date_str = target_date.isoformat()
+            for entry in data:
+                if entry.get("dateJour") == date_str:
+                    lib_couleur = entry.get("libCouleur", "").upper()
+                    if lib_couleur == "BLEU":
+                        return TempoColor.BLUE
+                    elif lib_couleur == "BLANC":
+                        return TempoColor.WHITE
+                    elif lib_couleur == "ROUGE":
+                        return TempoColor.RED
+                    else:
+                        logger.warning(
+                            "tempo_invalid_color",
+                            date=date_str,
+                            color=lib_couleur,
+                        )
+                        return TempoColor.UNKNOWN
+            logger.warning("tempo_date_not_found", date=date_str)
+            return TempoColor.UNKNOWN
+
+        # Format 2: Dict avec tempo_like_calendars (format alternatif)
         calendars = data.get("tempo_like_calendars", [])
 
         if not calendars:

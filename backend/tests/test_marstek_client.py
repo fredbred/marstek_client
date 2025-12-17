@@ -2,7 +2,7 @@
 
 import json
 import socket
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -461,4 +461,3 @@ async def test_send_command_json_decode_error(
             await client.send_command(
                 "192.168.1.100", 30000, {"method": "Bat.GetStatus", "params": {"id": 0}}
             )
-

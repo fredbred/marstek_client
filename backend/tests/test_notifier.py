@@ -1,13 +1,13 @@
 """Tests for notification system."""
 
 from datetime import datetime
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 
 from app.core.tempo_service import TempoColor
 from app.models import Battery
-from app.notifications.notifier import Notifier, TEMPLATES
+from app.notifications.notifier import TEMPLATES, Notifier
 
 
 @pytest.fixture
@@ -67,7 +67,9 @@ def test_notifier_init(
 
 @patch("app.notifications.notifier.get_settings")
 @patch("app.notifications.notifier.Apprise")
-def test_notifier_init_disabled(mock_apprise_class: MagicMock, mock_get_settings: MagicMock) -> None:
+def test_notifier_init_disabled(
+    mock_apprise_class: MagicMock, mock_get_settings: MagicMock
+) -> None:
     """Test Notifier initialization when disabled."""
     mock_settings = MagicMock()
     mock_settings.notification.enabled = False
@@ -298,7 +300,10 @@ async def test_notify_battery_offline(
 @patch("app.notifications.notifier.Apprise")
 @pytest.mark.asyncio
 async def test_notifications_disabled(
-    mock_apprise_class: MagicMock, mock_get_settings: MagicMock, mock_settings: MagicMock, mock_apprise: MagicMock
+    mock_apprise_class: MagicMock,
+    mock_get_settings: MagicMock,
+    mock_settings: MagicMock,
+    mock_apprise: MagicMock,
 ) -> None:
     """Test that notifications are not sent when disabled."""
     mock_settings.notification.enabled = False
@@ -317,7 +322,10 @@ async def test_notifications_disabled(
 @patch("app.notifications.notifier.Apprise")
 @pytest.mark.asyncio
 async def test_notify_tempo_white_no_alert(
-    mock_apprise_class: MagicMock, mock_get_settings: MagicMock, mock_settings: MagicMock, mock_apprise: MagicMock
+    mock_apprise_class: MagicMock,
+    mock_get_settings: MagicMock,
+    mock_settings: MagicMock,
+    mock_apprise: MagicMock,
 ) -> None:
     """Test that WHITE Tempo color doesn't trigger alert."""
     mock_get_settings.return_value = mock_settings

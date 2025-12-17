@@ -11,7 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import sessionmaker
 
 from app.core.marstek_client import MarstekUDPClient
-from app.database import Base, get_db
+from app.database import Base
 from app.models import Battery
 
 

@@ -27,8 +27,9 @@ def tempo_service(mock_redis: MagicMock) -> TempoService:
 
 
 @pytest.mark.asyncio
-async def test_get_tempo_color_cache_hit(tempo_service: TempoService, mock_redis: MagicMock) -> None:
-
+async def test_get_tempo_color_cache_hit(
+    tempo_service: TempoService, mock_redis: MagicMock
+) -> None:
     """Test getting Tempo color from cache."""
     target_date = date.today()
 
@@ -80,7 +81,6 @@ async def test_get_tempo_color_api_success(
 
 
 @pytest.mark.asyncio
-async def test_get_tomorrow_color(tempo_service: TempoService, mock_redis: MagicMock) -> None:
 async def test_get_tomorrow_color(
     tempo_service: TempoService, mock_redis: MagicMock
 ) -> None:
@@ -126,8 +126,6 @@ async def test_should_activate_precharge_false_today_red(
     tempo_service: TempoService, mock_redis: MagicMock
 ) -> None:
     """Test precharge not activated when today is already red."""
-    today = date.today()
-    tomorrow = today + timedelta(days=1)
 
     # Mock cache: both RED
     def mock_get(key: str) -> str | None:
@@ -220,7 +218,9 @@ async def test_get_remaining_days_success(
 
 
 @pytest.mark.asyncio
-async def test_get_remaining_days_error(tempo_service: TempoService, mock_redis: MagicMock) -> None:
+async def test_get_remaining_days_error(
+    tempo_service: TempoService, mock_redis: MagicMock
+) -> None:
     """Test getting remaining days with API error."""
     with patch.object(tempo_service, "_get_http_client") as mock_get_client:
         mock_client = MagicMock()
@@ -246,7 +246,10 @@ async def test_cache_ttl_today(tempo_service: TempoService) -> None:
 
 
 @pytest.mark.asyncio
-    }
+async def test_parse_api_response_white(tempo_service: TempoService) -> None:
+    """Test parsing API response with white color."""
+    target_date = date.today()
+    data = [{"dateJour": target_date.isoformat(), "codeJour": 2, "libCouleur": "Blanc"}]
 
     color = tempo_service._parse_api_response(data, target_date)
 
@@ -270,12 +273,10 @@ async def test_tempo_calendar_to_dict() -> None:
     calendar = TempoCalendar(date=date(2024, 1, 15), color=TempoColor.RED)
 
     result = calendar.to_dict()
-
     assert result["date"] == "2024-01-15"
     assert result["color"] == "RED"
 
 
-@pytest.mark.asyncio
 @pytest.mark.asyncio
 async def test_tempo_calendar_from_dict() -> None:
     """Test TempoCalendar from_dict."""
@@ -285,4 +286,3 @@ async def test_tempo_calendar_from_dict() -> None:
 
     assert calendar.date == date(2024, 1, 15)
     assert calendar.color == TempoColor.BLUE
-
