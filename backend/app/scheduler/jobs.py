@@ -137,19 +137,35 @@ async def job_check_tempo_tomorrow() -> None:
 
 
 async def job_monitor_batteries() -> None:
-    """Exécuté toutes les 5 minutes - Log status + alertes.
+    """Exécuté toutes les 10 minutes - Log status + health check + alertes.
 
-    Récupère le status de toutes les batteries, le sauvegarde en TimescaleDB
-    et envoie des alertes si nécessaire (SOC bas, température élevée, etc.).
+    Récupère le status de toutes les batteries, le sauvegarde en TimescaleDB,
+    met à jour last_seen_at (health check) et envoie des alertes si nécessaire
+    (SOC bas, température élevée, etc.).
     """
     logger.debug("scheduled_job_started", job="monitor_batteries")
 
     async with async_session_maker() as db:
         try:
+            from sqlalchemy import update
+
+            from app.models import Battery
+
             manager = BatteryManager()
 
-            # Récupérer les status
+            # Récupérer les status (sert aussi de health check)
             status_dict = await manager.get_all_status(db)
+
+            # Mettre à jour last_seen_at pour les batteries qui répondent (health check)
+            for battery_id, status_data in status_dict.items():
+                if "error" not in status_data:
+                    await db.execute(
+                        update(Battery)
+                        .where(Battery.id == battery_id)
+                        .values(last_seen_at=datetime.utcnow())
+                    )
+
+            await db.commit()
 
             # Logger en base de données
             await manager.log_status_to_db(db)
@@ -198,6 +214,7 @@ async def job_monitor_batteries() -> None:
                 error=str(e),
                 exc_info=True,
             )
+            await db.rollback()
 
 
 async def job_health_check() -> None:
