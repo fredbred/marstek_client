@@ -41,42 +41,32 @@ make clean-cache    # Supprimer cache de build
 make clean-all      # Nettoyage complet (⚠️ attention)
 ```
 
-### Gestion Git
-
-```bash
-make check-conflicts      # Vérifier les conflits Git
-make resolve-conflicts    # Résoudre automatiquement les conflits simples
-```
-
-## 🔧 Prévention des Conflits Git
-
-**⚠️ IMPORTANT** : Avant chaque commit, vérifiez les conflits :
-
-```bash
-make check-conflicts
-```
-
-Si des conflits sont détectés :
-1. Résoudre automatiquement les conflits simples : `make resolve-conflicts`
-2. Résoudre manuellement les conflits complexes
-3. Vérifier à nouveau : `make check-conflicts`
-
-Voir `docs/GIT_WORKFLOW.md` pour le guide complet.
-
 ## 📚 Documentation
 
-- `docs/GIT_WORKFLOW.md` - Guide complet de workflow Git
 - `docs/architecture.md` - Architecture du système
 - `docs/api.md` - Documentation API
+- `docs/deployment.md` - Guide de déploiement
+- `docs/troubleshooting.md` - Guide de dépannage
+- `docs/INSTALLATION_RASPBERRY.md` - Installation sur Raspberry Pi
+- `CODE_REVIEW_TIMING_ISSUES.md` - Analyse des problèmes de timing
 
 ## 🐛 Dépannage
 
 ### Build Docker échoue
 
-1. Vérifier les conflits : `make check-conflicts`
-2. Nettoyer le cache : `docker compose build --no-cache`
-3. Vérifier `backend/pyproject.toml` (syntaxe TOML)
+1. Nettoyer le cache : `docker compose build --no-cache`
+2. Vérifier `backend/pyproject.toml` (syntaxe TOML)
+3. Vérifier les logs : `docker compose logs backend`
 
-### Conflits Git
+### Batteries ne changent pas de mode
 
-Utiliser `make resolve-conflicts` pour résoudre automatiquement les conflits simples.
+Voir le rapport détaillé : `CODE_REVIEW_TIMING_ISSUES.md`
+
+Les problèmes courants :
+- Timeout UDP trop court (maintenant 15s)
+- Polling trop fréquent (batteries instables si <60s)
+- Solution : Les paramètres ont été optimisés en v0.2.0
+
+### Plus d'aide
+
+Consultez `docs/troubleshooting.md` pour le guide complet.

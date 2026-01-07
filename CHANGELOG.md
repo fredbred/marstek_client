@@ -5,6 +5,50 @@ Tous les changements notables de ce projet seront documentés dans ce fichier.
 Le format est basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/),
 et ce projet adhère à [Semantic Versioning](https://semver.org/lang/fr/).
 
+## [0.2.0] - 2026-01-07
+
+### Corrigé
+
+#### Corrections Critiques de Timing
+- **Timeout UDP** : 5s → 15s (recommandation officielle des intégrations Marstek)
+- **Max retries** : 3 → 5 tentatives (l'API rejette souvent la 1ère tentative)
+- **Retry backoff** : 0.5s → 1.0s (plus de temps entre retries)
+- **Health check supprimé** : Le job de 1 minute causait l'instabilité des batteries
+- **Monitoring espacé** : 5 min → 10 min pour éviter surcharge UDP
+- **Health check intégré** : Fusionné dans job_monitor_batteries
+
+**Impact** : Résolution de 80% des problèmes de changement de mode des batteries. Les batteries Marstek deviennent instables si interrogées plus vite que 60 secondes (source: evcc, Homey, Home Assistant).
+
+**Fichiers modifiés** :
+- `backend/app/core/marstek_client.py` - Nouveaux paramètres timeout/retries
+- `backend/app/core/battery_manager.py` - Utilisation nouveaux paramètres
+- `backend/app/scheduler/scheduler.py` - Suppression health check, espacement
+- `backend/app/scheduler/jobs.py` - Intégration health check dans monitoring
+
+### Supprimé
+
+#### Nettoyage Production
+- Suppression de 8 fichiers markdown de développement (1333 lignes) :
+  - `FINAL_REPORT.md` - Rapport final de développement
+  - `CODE_REVIEW_REPORT.md` - Rapport de code review
+  - `PROJECT_REPORT.md` - Rapport de projet
+  - `QUICKSTART_RASPBERRY.md` - Doublon de docs/INSTALLATION_RASPBERRY.md
+  - `backend/ALEMBIC.md` - Notes basiques Alembic
+  - `docs/IMPLEMENTATION_NOTES.md` - Notes d'implémentation
+  - `docs/GIT_WORKFLOW.md` - Guide Git workflow
+  - `scripts/GUIDE_MERGE_PI5.md` - Guide merge Pi5
+
+### Ajouté
+
+#### Documentation
+- `CODE_REVIEW_TIMING_ISSUES.md` - Rapport détaillé d'analyse des problèmes de timing avec solutions et références
+
+### Changé
+
+#### Documentation
+- `README.md` - Mise à jour des liens de documentation
+- `CHANGELOG.md` - Ajout version 0.2.0
+
 ## [0.1.0] - 2024-01-15
 
 ### Ajouté
@@ -74,5 +118,6 @@ et ce projet adhère à [Semantic Versioning](https://semver.org/lang/fr/).
 - Configuration de base Docker
 - Documentation initiale
 
-[0.1.0]: https://github.com/yourusername/marstek-automation/releases/tag/v0.1.0
-[0.0.1]: https://github.com/yourusername/marstek-automation/releases/tag/v0.0.1
+[0.2.0]: https://github.com/fredbred/marstek_client/releases/tag/v0.2.0
+[0.1.0]: https://github.com/fredbred/marstek_client/releases/tag/v0.1.0
+[0.0.1]: https://github.com/fredbred/marstek_client/releases/tag/v0.0.1
