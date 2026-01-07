@@ -27,7 +27,7 @@ class BatteryManager:
         Args:
             client: Marstek UDP client (creates new one if None)
         """
-        self.client = client or MarstekUDPClient(timeout=5.0, max_retries=3)
+        self.client = client or MarstekUDPClient(timeout=15.0, max_retries=5, retry_backoff=1.0)
         self._batteries_cache: dict[int, Battery] = {}
 
     async def discover_and_register(self, db: AsyncSession) -> list[Battery]:

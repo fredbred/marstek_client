@@ -55,17 +55,17 @@ class MarstekUDPClient:
 
     def __init__(
         self,
-        timeout: float = 5.0,
-        max_retries: int = 3,
-        retry_backoff: float = 0.5,
+        timeout: float = 15.0,
+        max_retries: int = 5,
+        retry_backoff: float = 1.0,
         instance_id: int = 0,
     ) -> None:
         """Initialize Marstek UDP client.
 
         Args:
-            timeout: Timeout for UDP requests in seconds
-            max_retries: Maximum number of retry attempts
-            retry_backoff: Base backoff time in seconds (exponential)
+            timeout: Timeout for UDP requests in seconds (default: 15s as recommended by Marstek integrations)
+            max_retries: Maximum number of retry attempts (default: 5, API often rejects first attempt)
+            retry_backoff: Base backoff time in seconds (exponential, default: 1.0s)
             instance_id: Default instance ID for device commands
         """
         self.timeout = timeout

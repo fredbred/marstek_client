@@ -12,7 +12,6 @@ from apscheduler.triggers.interval import IntervalTrigger
 from app.config import get_settings
 from app.scheduler.jobs import (
     job_check_tempo_tomorrow,
-    job_health_check,
     job_monitor_batteries,
     job_switch_to_auto,
     job_switch_to_manual_night,
@@ -123,27 +122,21 @@ def _register_jobs(scheduler: AsyncIOScheduler) -> None:
         max_instances=1,
     )
 
-    # Job: Monitoring batteries toutes les 5 minutes
+    # Job: Monitoring batteries toutes les 10 minutes (espacé pour éviter instabilité)
+    # Note: Batteries Marstek deviennent instables si interrogées trop fréquemment (<60s)
     scheduler.add_job(
         job_monitor_batteries,
-        trigger=IntervalTrigger(minutes=5, timezone=settings.scheduler.timezone),
+        trigger=IntervalTrigger(minutes=10, timezone=settings.scheduler.timezone),
         id="monitor_batteries",
-        name="Monitor batteries and log status (every 5min)",
+        name="Monitor batteries and log status (every 10min)",
         replace_existing=True,
         max_instances=1,
     )
 
-    # Job: Health check toutes les 1 minute
-    scheduler.add_job(
-        job_health_check,
-        trigger=IntervalTrigger(minutes=1, timezone=settings.scheduler.timezone),
-        id="health_check",
-        name="Battery health check (every 1min)",
-        replace_existing=True,
-        max_instances=1,
-    )
+    # Health check supprimé car trop fréquent (1min causait instabilité des batteries)
+    # La vérification de santé est maintenant intégrée dans job_monitor_batteries
 
-    logger.info("scheduler_jobs_registered", job_count=5)
+    logger.info("scheduler_jobs_registered", job_count=4)
 
 
 def _setup_shutdown_handlers() -> None:
