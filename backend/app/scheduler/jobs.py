@@ -1,5 +1,6 @@
 """Scheduled jobs for battery management."""
 
+import asyncio
 from datetime import datetime
 
 import structlog
@@ -16,7 +17,15 @@ async def job_switch_to_auto() -> None:
     Passe toutes les batteries actives en mode AUTO pour la période
     de la journée (6h-22h).
     """
-    logger.info("scheduled_job_started", job="switch_to_auto")
+    from datetime import datetime
+    
+    start_time = datetime.now()
+    logger.info(
+        "scheduled_job_started", 
+        job="switch_to_auto",
+        start_time=start_time.isoformat(),
+        description="Passage en mode AUTO pour consommation journée"
+    )
 
     async with async_session_maker() as db:
         try:
@@ -27,13 +36,31 @@ async def job_switch_to_auto() -> None:
 
             success_count = sum(1 for success in results.values() if success)
             total_count = len(results)
+            failed_batteries = [bid for bid, success in results.items() if not success]
+            
+            end_time = datetime.now()
+            duration = (end_time - start_time).total_seconds()
 
             logger.info(
                 "scheduled_job_completed",
                 job="switch_to_auto",
                 success_count=success_count,
                 total_count=total_count,
+                failed_batteries=failed_batteries if failed_batteries else None,
+                duration_seconds=duration,
+                end_time=end_time.isoformat(),
+                results=results,
             )
+            
+            # Log individuel par batterie pour traçabilité
+            for battery_id, success in results.items():
+                logger.info(
+                    "battery_mode_change_result",
+                    job="switch_to_auto",
+                    battery_id=battery_id,
+                    success=success,
+                    target_mode="AUTO",
+                )
 
         except Exception as e:
             logger.error(
@@ -51,7 +78,15 @@ async def job_switch_to_manual_night() -> None:
     pour la période de nuit (22h-6h) afin d'éviter la consommation
     pendant les heures creuses.
     """
-    logger.info("scheduled_job_started", job="switch_to_manual_night")
+    from datetime import datetime
+    
+    start_time = datetime.now()
+    logger.info(
+        "scheduled_job_started", 
+        job="switch_to_manual_night",
+        start_time=start_time.isoformat(),
+        description="Passage en mode MANUAL 0W pour nuit HC"
+    )
 
     async with async_session_maker() as db:
         try:
@@ -62,13 +97,31 @@ async def job_switch_to_manual_night() -> None:
 
             success_count = sum(1 for success in results.values() if success)
             total_count = len(results)
+            failed_batteries = [bid for bid, success in results.items() if not success]
+            
+            end_time = datetime.now()
+            duration = (end_time - start_time).total_seconds()
 
             logger.info(
                 "scheduled_job_completed",
                 job="switch_to_manual_night",
                 success_count=success_count,
                 total_count=total_count,
+                failed_batteries=failed_batteries if failed_batteries else None,
+                duration_seconds=duration,
+                end_time=end_time.isoformat(),
+                results=results,
             )
+            
+            # Log individuel par batterie
+            for battery_id, success in results.items():
+                logger.info(
+                    "battery_mode_change_result",
+                    job="switch_to_manual_night",
+                    battery_id=battery_id,
+                    success=success,
+                    target_mode="MANUAL_NIGHT",
+                )
 
         except Exception as e:
             logger.error(
@@ -100,6 +153,16 @@ async def job_check_tempo_tomorrow() -> None:
                 logger.info("tempo_disabled", job="check_tempo_tomorrow")
                 return
 
+            # Récupérer la config Tempo depuis la base
+            from sqlalchemy import select
+            from app.models import AppConfig
+            
+            stmt = select(AppConfig).where(AppConfig.key.in_(["tempo_target_soc_red", "tempo_precharge_power"]))
+            result = await db.execute(stmt)
+            configs = {row.key: row.value for row in result.scalars().all()}
+            target_soc = int(configs.get("tempo_target_soc_red", "95"))
+            precharge_power = int(configs.get("tempo_precharge_power", "2000"))
+            
             # Vérifier si précharge nécessaire
             async with TempoService() as tempo_service:
                 should_activate = await tempo_service.should_activate_precharge()
@@ -110,17 +173,22 @@ async def job_check_tempo_tomorrow() -> None:
                         "tempo_red_day_detected",
                         date=tomorrow.isoformat(),
                         action="activating_precharge",
+                        target_soc=target_soc,
                     )
 
                     manager = BatteryManager()
                     controller = ModeController(manager)
 
-                    # Activer la précharge
-                    await controller.activate_tempo_precharge(db, target_soc=95)
+                    # Activer la précharge avec le SOC et la puissance configurés
+                    await controller.activate_tempo_precharge(
+                        db, target_soc=target_soc, power_limit=precharge_power
+                    )
 
                     logger.info(
                         "tempo_precharge_activated",
                         date=tomorrow.isoformat(),
+                        target_soc=target_soc,
+                        precharge_power=precharge_power,
                     )
                 else:
                     logger.debug(
@@ -137,23 +205,35 @@ async def job_check_tempo_tomorrow() -> None:
 
 
 async def job_monitor_batteries() -> None:
-    """Exécuté toutes les 10 minutes - Log status + health check + alertes.
+    """Exécuté toutes les 10 minutes - Rafraîchit le cache des batteries.
 
-    Récupère le status de toutes les batteries, le sauvegarde en TimescaleDB,
-    met à jour last_seen_at (health check) et envoie des alertes si nécessaire
-    (SOC bas, température élevée, etc.).
+    Récupère le status de chaque batterie avec délai entre chaque
+    pour éviter le rate limiting des VenusE.
     """
-    logger.debug("scheduled_job_started", job="monitor_batteries")
+    logger.info("scheduled_job_started", job="monitor_batteries")
 
     async with async_session_maker() as db:
         try:
-            from sqlalchemy import update
-
+            from sqlalchemy import select
             from app.models import Battery
-
+            
             manager = BatteryManager()
-
-            # Récupérer les status (sert aussi de health check)
+            
+            # Récupérer les batteries actives
+            stmt = select(Battery).where(Battery.is_active)
+            result = await db.execute(stmt)
+            batteries = result.scalars().all()
+            
+            # Rafraîchir chaque batterie avec délai de 120s
+            for i, battery in enumerate(batteries):
+                logger.info("refreshing_battery", battery_id=battery.id, index=i+1, total=len(batteries))
+                await manager.refresh_single_battery(battery)
+                
+                # Attendre 120s avant la prochaine batterie (sauf la dernière)
+                if i < len(batteries) - 1:
+                    await asyncio.sleep(120.0)
+            
+            # Récupérer les status depuis le cache
             status_dict = await manager.get_all_status(db)
 
             # Mettre à jour last_seen_at pour les batteries qui répondent (health check)
@@ -242,8 +322,11 @@ async def job_health_check() -> None:
 
             manager = BatteryManager()
 
-            # Vérifier chaque batterie
-            for battery in batteries:
+            # Vérifier chaque batterie avec délai pour éviter rate limiting
+            for i, battery in enumerate(batteries):
+                if i > 0:
+                    await asyncio.sleep(3)  # 3 secondes entre chaque batterie
+                
                 try:
                     # Tentative de récupération du status (test de connectivité)
                     await manager.client.get_device_info(

@@ -13,6 +13,11 @@ from app.models import Battery, BatteryStatusLog
 
 logger = structlog.get_logger(__name__)
 
+# Cache en mémoire pour les status des batteries (évite les requêtes répétées)
+_battery_status_cache: dict[int, dict] = {}
+_battery_cache_timestamps: dict[int, datetime] = {}
+CACHE_TTL_SECONDS = 300  # 5 minutes de cache
+
 
 class BatteryManager:
     """Gère les 3 batteries Marstek en parallèle.
@@ -28,7 +33,7 @@ class BatteryManager:
             client: Marstek UDP client (creates new one if None)
         """
         self.client = client or MarstekUDPClient(
-            timeout=15.0, max_retries=5, retry_backoff=1.0
+            timeout=20.0, max_retries=3, retry_backoff=1.0
         )
         self._batteries_cache: dict[int, Battery] = {}
 
@@ -113,7 +118,7 @@ class BatteryManager:
         return registered
 
     async def get_all_status(self, db: AsyncSession) -> dict[int, dict[str, Any]]:
-        """Récupère l'état des 3 batteries en parallèle.
+        """Retourne le status depuis le cache (mis à jour par le scheduler).
 
         Args:
             db: Database session
@@ -121,6 +126,8 @@ class BatteryManager:
         Returns:
             Dictionnaire {battery_id: {status, es_status, mode_info}}
         """
+        global _battery_status_cache, _battery_cache_timestamps
+        
         # Récupérer toutes les batteries actives
         stmt = select(Battery).where(Battery.is_active)
         result = await db.execute(stmt)
@@ -130,30 +137,60 @@ class BatteryManager:
             logger.warning("no_active_batteries")
             return {}
 
-        logger.info("fetching_battery_status", count=len(batteries))
-
-        # Récupérer les status en parallèle
-        tasks = []
-        for battery in batteries:
-            tasks.append(self._get_single_battery_status(battery))
-
-        results = await asyncio.gather(*tasks, return_exceptions=True)
-
-        # Construire le dictionnaire de résultats
         status_dict: dict[int, dict[str, Any]] = {}
-
-        for battery, result in zip(batteries, results):  # type: ignore[assignment]
-            if isinstance(result, Exception):
-                logger.error(
-                    "battery_status_fetch_failed",
-                    battery_id=battery.id,
-                    error=str(result),
-                )
-                status_dict[battery.id] = {"error": str(result)}
+        
+        for battery in batteries:
+            if battery.id in _battery_status_cache:
+                cache_time = _battery_cache_timestamps.get(battery.id, datetime.min)
+                cache_age = (datetime.utcnow() - cache_time).total_seconds()
+                status_dict[battery.id] = _battery_status_cache[battery.id]
+                status_dict[battery.id]["cache_age_seconds"] = int(cache_age)
             else:
-                status_dict[battery.id] = result  # type: ignore[assignment]
-
+                status_dict[battery.id] = {"error": "No cached data - wait for scheduler"}
+        
         return status_dict
+
+    async def refresh_single_battery(self, battery: Battery) -> dict[str, Any]:
+        """Rafraîchit le cache pour une seule batterie (appelé par scheduler).
+
+        Args:
+            battery: Battery model instance
+
+        Returns:
+            Status de la batterie
+        """
+        global _battery_status_cache, _battery_cache_timestamps
+        
+        try:
+            result = await self._get_single_battery_status(battery)
+            
+            # Ne mettre à jour le cache que si on a des données valides (bat_status non null)
+            if result.get("bat_status") is not None:
+                _battery_status_cache[battery.id] = result
+                _battery_cache_timestamps[battery.id] = datetime.utcnow()
+                logger.info("battery_cache_updated", battery_id=battery.id, success=True)
+            else:
+                # Données partielles : garder l'ancien cache si disponible
+                if battery.id in _battery_status_cache and _battery_status_cache[battery.id].get("bat_status"):
+                    cache_age = _battery_cache_timestamps.get(battery.id, datetime.min)
+                    logger.warning(
+                        "battery_refresh_partial_keeping_old",
+                        battery_id=battery.id,
+                        old_cache_age_seconds=int((datetime.utcnow() - cache_age).total_seconds()),
+                    )
+                    # Marquer le cache comme stale mais garder les données
+                    _battery_status_cache[battery.id]["stale"] = True
+                    return _battery_status_cache[battery.id]
+                else:
+                    # Pas de cache précédent valide - stocker l'erreur
+                    _battery_status_cache[battery.id] = result
+                    _battery_cache_timestamps[battery.id] = datetime.utcnow()
+                    logger.warning("battery_cache_error_stored", battery_id=battery.id)
+            
+            return result
+        except Exception as e:
+            logger.error("battery_refresh_failed", battery_id=battery.id, error=str(e))
+            return {"error": str(e)}
 
     async def _get_single_battery_status(self, battery: Battery) -> dict[str, Any]:
         """Récupère le status d'une seule batterie.
@@ -165,15 +202,27 @@ class BatteryManager:
             Dict avec status, es_status, mode_info
         """
         try:
-            # Récupérer les informations en parallèle
-            bat_status, es_status, mode_info = await asyncio.gather(
-                self.client.get_battery_status(battery.ip_address, battery.udp_port),
-                self.client.get_es_status(battery.ip_address, battery.udp_port),
-                self.client.get_current_mode(battery.ip_address, battery.udp_port),
-                return_exceptions=True,
-            )
+            # Récupérer UNIQUEMENT Bat.GetStatus (plus fiable sur VenusE)
+            # ES.GetStatus et ES.GetMode timeout souvent - on les skip
+            bat_status: Any = None
+            es_status: Any = None
+            mode_info: Any = None
+
+            try:
+                bat_status = await self.client.get_battery_status(battery.ip_address, battery.udp_port)
+            except Exception as e:
+                bat_status = e
+
+            # Attendre 30 secondes avant ES.GetStatus (rate limiting VenusE)
+            await asyncio.sleep(45.0)  # 30s requis pour éviter rate limiting
+
+            try:
+                es_status = await self.client.get_es_status(battery.ip_address, battery.udp_port)
+            except Exception as e:
+                es_status = e
 
             result: dict[str, Any] = {}
+            data_incomplete = False
 
             if isinstance(bat_status, Exception):
                 logger.warning(
@@ -182,6 +231,7 @@ class BatteryManager:
                     error=str(bat_status),
                 )
                 result["bat_status"] = None
+                data_incomplete = True
             else:
                 result["bat_status"] = bat_status.model_dump()  # type: ignore[union-attr]
 
@@ -195,15 +245,19 @@ class BatteryManager:
             else:
                 result["es_status"] = es_status.model_dump()  # type: ignore[union-attr]
 
-            if isinstance(mode_info, Exception):
-                logger.warning(
-                    "mode_info_error",
-                    battery_id=battery.id,
-                    error=str(mode_info),
-                )
-                result["mode_info"] = None
-            else:
+            # Récupérer le mode avec délai supplémentaire
+            await asyncio.sleep(45.0)  # 30s requis pour éviter rate limiting
+            
+            try:
+                mode_info = await self.client.get_current_mode(battery.ip_address, battery.udp_port)
                 result["mode_info"] = mode_info.model_dump()  # type: ignore[union-attr]
+            except Exception as e:
+                logger.warning("mode_info_error", battery_id=battery.id, error=str(e))
+                result["mode_info"] = None
+            
+            # Marquer comme incomplet si Bat.GetStatus a échoué
+            if data_incomplete:
+                result["error"] = "Données partielles - Bat.GetStatus timeout"
 
             return result
 
@@ -241,61 +295,48 @@ class BatteryManager:
         mode = mode_config.get("mode", "").lower()
         logger.info("setting_mode_all", mode=mode, battery_count=len(batteries))
 
-        # Appliquer le mode en parallèle
-        tasks = []
-        for battery in batteries:
-            if mode == "auto":
-                tasks.append(
-                    self.client.set_mode_auto(battery.ip_address, battery.udp_port)
-                )
-            elif mode == "manual":
-                manual_config = mode_config.get("config")
-                if not manual_config:
-                    logger.error("manual_config_missing", battery_id=battery.id)
-
-                    async def _fail() -> bool:
-                        return False
-
-                    tasks.append(_fail())
-                else:
-                    from app.models.marstek_api import ManualConfig
-
-                    config = ManualConfig(**manual_config)
-                    tasks.append(
-                        self.client.set_mode_manual(
+        # Appliquer le mode SÉQUENTIELLEMENT avec délais pour éviter rate limiting
+        success_dict: dict[int, bool] = {}
+        
+        for i, battery in enumerate(batteries):
+            # Délai entre batteries (sauf la première)
+            if i > 0:
+                logger.info("waiting_between_batteries", delay_seconds=30)
+                await asyncio.sleep(30.0)
+            
+            try:
+                if mode == "auto":
+                    result = await self.client.set_mode_auto(battery.ip_address, battery.udp_port)
+                elif mode == "manual":
+                    manual_config = mode_config.get("config")
+                    if not manual_config:
+                        logger.error("manual_config_missing", battery_id=battery.id)
+                        result = False
+                    else:
+                        from app.models.marstek_api import ManualConfig
+                        config = ManualConfig(**manual_config)
+                        result = await self.client.set_mode_manual(
                             battery.ip_address, battery.udp_port, config
                         )
-                    )
-            else:
-                logger.error("unknown_mode", mode=mode, battery_id=battery.id)
-
-                async def _fail() -> bool:
-                    return False
-
-                tasks.append(_fail())
-
-        results = await asyncio.gather(*tasks, return_exceptions=True)
-
-        # Construire le dictionnaire de résultats
-        success_dict: dict[int, bool] = {}
-
-        for battery, result in zip(batteries, results):  # type: ignore[assignment]
-            if isinstance(result, Exception):
-                logger.error(
-                    "mode_set_failed",
-                    battery_id=battery.id,
-                    mode=mode,
-                    error=str(result),
-                )
-                success_dict[battery.id] = False
-            else:
-                success_dict[battery.id] = result  # type: ignore[assignment]
+                else:
+                    logger.error("unknown_mode", mode=mode, battery_id=battery.id)
+                    result = False
+                
+                success_dict[battery.id] = result
                 logger.info(
                     "mode_set_success",
                     battery_id=battery.id,
                     mode=mode,
                     success=result,
                 )
+            except Exception as e:
+                logger.error(
+                    "mode_set_failed",
+                    battery_id=battery.id,
+                    mode=mode,
+                    error=str(e),
+                )
+                success_dict[battery.id] = False
 
         return success_dict
 
@@ -327,19 +368,21 @@ class BatteryManager:
                 es_status = status_data.get("es_status")
                 mode_info = status_data.get("mode_info")
 
-                if not bat_status or not es_status or not mode_info:
-                    continue  # Données incomplètes
+                if not bat_status:
+                    continue  # Pas de données de batterie
 
-                # Créer le log
+                # Créer le log (gérer es_status et mode_info null)
+                es = es_status or {}
+                mode = mode_info or {}
                 log = BatteryStatusLog(
                     battery_id=battery_id,
                     timestamp=datetime.utcnow(),
                     soc=bat_status.get("soc", 0),
-                    bat_power=es_status.get("bat_power"),
-                    pv_power=es_status.get("pv_power"),
-                    ongrid_power=es_status.get("ongrid_power"),
-                    offgrid_power=es_status.get("offgrid_power"),
-                    mode=mode_info.get("mode", "Unknown"),
+                    bat_power=es.get("bat_power"),
+                    pv_power=es.get("pv_power"),
+                    ongrid_power=es.get("ongrid_power"),
+                    offgrid_power=es.get("offgrid_power"),
+                    mode=mode.get("mode", "Unknown"),
                     bat_temp=bat_status.get("bat_temp"),
                     bat_capacity=bat_status.get("bat_capacity"),
                 )

@@ -2,149 +2,171 @@
 
 from datetime import time
 
+import httpx
 import streamlit as st
 
-from utils import fetch_schedules, save_schedule
+# API configuration
+API_BASE_URL = "http://marstek-backend:8000"
+API_TIMEOUT = 10.0
 
 
-# #region agent log
-def _debug_log(hypothesis_id, location, message, data=None):
-    """Helper function for debug logging."""
+def fetch_tempo_config() -> dict:
+    """Récupère la configuration Tempo depuis l'API."""
     try:
-        import json
-        from datetime import datetime
-        log_path = "/app/.cursor/debug.log"
-        log_entry = {
-            "sessionId": "debug-session",
-            "runId": "run1",
-            "hypothesisId": hypothesis_id,
-            "location": location,
-            "message": message,
-            "data": data or {},
-            "timestamp": int(datetime.now().timestamp() * 1000)
-        }
-        with open(log_path, "a") as f:
-            f.write(json.dumps(log_entry) + "\n")
+        response = httpx.get(f"{API_BASE_URL}/api/v1/config/tempo", timeout=API_TIMEOUT)
+        response.raise_for_status()
+        return response.json()
     except Exception:
-        pass
-# #endregion
+        return {"enabled": True, "target_soc_red": 95, "precharge_hour": "22:00", "precharge_power": -1000}
+
+
+def save_tempo_config(enabled: bool, target_soc: int, precharge_hour: str, precharge_power: int) -> bool:
+    """Sauvegarde la configuration Tempo via l'API."""
+    try:
+        response = httpx.put(
+            f"{API_BASE_URL}/api/v1/config/tempo",
+            json={
+                "enabled": enabled,
+                "target_soc_red": target_soc,
+                "precharge_hour": precharge_hour,
+                "precharge_power": precharge_power,
+            },
+            timeout=API_TIMEOUT,
+        )
+        response.raise_for_status()
+        return True
+    except Exception as e:
+        st.error(f"Erreur lors de la sauvegarde: {e}")
+        return False
+
+
+def fetch_schedules() -> list:
+    """Récupère les schedules depuis l'API."""
+    try:
+        response = httpx.get(f"{API_BASE_URL}/api/v1/scheduler/schedules", timeout=API_TIMEOUT)
+        response.raise_for_status()
+        return response.json()
+    except Exception:
+        return []
+
 
 st.title("⚙️ Configuration")
 
 # Section horaires Auto/Manuel
 with st.expander("🕐 Horaires Auto/Manuel", expanded=True):
+    st.info("ℹ️ Les horaires sont configurés dans le scheduler backend (6h AUTO, 22h MANUAL)")
+    
     col1, col2 = st.columns(2)
 
     with col1:
         st.subheader("Mode AUTO")
-        auto_start = st.time_input("Début AUTO", value=time(6, 0), key="auto_start")
-        auto_end = st.time_input("Fin AUTO", value=time(22, 0), key="auto_end")
+        st.metric("Début", "06:00")
+        st.metric("Fin", "22:00")
 
     with col2:
         st.subheader("Mode MANUAL")
-        manual_start = st.time_input(
-            "Début MANUAL", value=time(22, 0), key="manual_start"
-        )
-        manual_end = st.time_input("Fin MANUAL", value=time(6, 0), key="manual_end")
+        st.metric("Début", "22:00")
+        st.metric("Fin", "06:00")
+    
+    st.caption("💡 Pour modifier ces horaires, contactez l'administrateur système.")
 
-    if st.button("💾 Sauvegarder horaires", key="save_hours"):
-        # TODO: Implement schedule creation/update
-        st.success("Horaires sauvegardés avec succès!")
-
-# Section Tempo
+# Section Tempo - Charger config depuis API
 with st.expander("📅 Paramètres Tempo", expanded=True):
-    enable_tempo = st.checkbox("Activer stratégie Tempo", value=True)
+    # Charger la config actuelle
+    tempo_config = fetch_tempo_config()
+    
+    enable_tempo = st.checkbox(
+        "Activer stratégie Tempo", 
+        value=tempo_config.get("enabled", True),
+        key="tempo_enabled"
+    )
 
     if enable_tempo:
         col1, col2 = st.columns(2)
 
         with col1:
             target_soc_red = st.slider(
-                "SOC cible veille rouge (%)", 80, 100, 95, key="soc_red"
+                "SOC cible veille jour rouge (%)", 
+                80, 100, 
+                tempo_config.get("target_soc_red", 95), 
+                key="soc_red"
             )
-            st.caption("Niveau de charge avant un jour rouge")
+            st.caption("🔴 Niveau de charge avant un jour rouge Tempo")
 
         with col2:
+            # Parser l'heure depuis la config
+            precharge_str = tempo_config.get("precharge_hour", "22:00")
+            try:
+                h, m = map(int, precharge_str.split(":"))
+                precharge_default = time(h, m)
+            except Exception:
+                precharge_default = time(22, 0)
+            
             precharge_hour = st.time_input(
-                "Heure de précharge", value=time(22, 0), key="precharge_hour"
+                "Heure de précharge", 
+                value=precharge_default, 
+                key="precharge_hour"
             )
-            st.caption("Heure de début de précharge")
+            st.caption("⏰ Heure de début de précharge automatique")
+
+        # Puissance de charge (affichée en positif mais stockée en négatif)
+        # La valeur DB est négative (-1000), on l'affiche en positif (1000)
+        db_power = tempo_config.get("precharge_power", -1000)
+        display_power = abs(db_power) if db_power else 1000
+        
+        precharge_power_display = st.slider(
+            "Puissance de charge (W)",
+            500, 3000,
+            display_power,
+            step=100,
+            key="precharge_power"
+        )
+        st.caption("⚡ Puissance de charge par batterie (valeur négative = charge depuis réseau)")
+        
+        # Convertir en négatif pour le stockage
+        precharge_power = -abs(precharge_power_display)
 
         st.info(
-            "💡 La précharge sera activée automatiquement la veille d'un jour rouge Tempo."
+            f"💡 La précharge sera activée à **{precharge_hour.strftime('%H:%M')}** la veille d'un jour rouge Tempo "
+            f"pour charger à **{abs(precharge_power)}W** jusqu'à **{target_soc_red}%**."
         )
+    else:
+        target_soc_red = 95
+        precharge_hour = time(22, 0)
+        precharge_power = -1000
 
     if st.button("💾 Sauvegarder Tempo", key="save_tempo"):
-        st.success("Paramètres Tempo sauvegardés!")
+        precharge_str = precharge_hour.strftime("%H:%M")
+        
+        if save_tempo_config(enable_tempo, target_soc_red, precharge_str, precharge_power):
+            st.success(f"✅ Configuration Tempo sauvegardée!")
+            st.write(f"- SOC cible: **{target_soc_red}%**")
+            st.write(f"- Heure précharge: **{precharge_str}**")
+            st.write(f"- Puissance: **{abs(precharge_power)}W** (charge)")
+            st.rerun()
 
-# Section seuils batteries
-with st.expander("🔋 Seuils Batteries", expanded=True):
+# Section seuils batteries (informative pour l'instant)
+with st.expander("🔋 Seuils Batteries", expanded=False):
+    st.info("ℹ️ Les seuils sont gérés par le backend. Cette section est informative.")
+    
     col1, col2 = st.columns(2)
 
     with col1:
-        min_soc_discharge = st.slider(
-            "SOC min décharge HC (%)", 0, 50, 20, key="min_soc"
-        )
-        st.caption("Seuil minimum pour décharge heures creuses")
-
-        low_soc_alert = st.slider(
-            "Alerte SOC faible (%)", 10, 30, 20, key="low_soc_alert"
-        )
-        st.caption("Seuil d'alerte pour SOC faible")
+        st.metric("SOC min décharge", "20%")
+        st.metric("Alerte SOC faible", "20%")
 
     with col2:
-        max_temp = st.slider(
-            "Température max (°C)", 40, 60, 50, key="max_temp"
-        )
-        st.caption("Température maximale avant alerte")
+        st.metric("Température max", "50°C")
+        st.metric("Timeout hors ligne", "15 min")
 
-        offline_timeout = st.number_input(
-            "Timeout hors ligne (min)", 5, 60, 15, key="offline_timeout"
-        )
-        st.caption("Délai avant alerte de batterie hors ligne")
-
-    if st.button("💾 Sauvegarder seuils", key="save_thresholds"):
-        st.success("Seuils sauvegardés!")
-
-# Section schedules existants
-with st.expander("📋 Schedules configurés", expanded=False):
-    schedules = fetch_schedules()
-
-    if schedules:
-        st.dataframe(
-            schedules,
-            use_container_width=True,
-            hide_index=True,
-            column_config={
-                "id": "ID",
-                "name": "Nom",
-                "mode_type": "Type",
-                "start_time": "Début",
-                "end_time": "Fin",
-                "is_active": "Actif",
-            },
-        )
-    else:
-        st.info("Aucun schedule configuré.")
-
-# Section notifications
-with st.expander("🔔 Notifications", expanded=False):
-    notifications_enabled = st.checkbox("Activer notifications", value=True)
-
-    if notifications_enabled:
-        telegram_enabled = st.checkbox("Activer Telegram", value=False)
-
-        if telegram_enabled:
-            telegram_token = st.text_input(
-                "Token Bot Telegram", type="password", help="Obtenu via @BotFather"
-            )
-            telegram_chat_id = st.text_input(
-                "Chat ID", help="Obtenu via @userinfobot"
-            )
-
-        st.info(
-            "💡 Configurez les notifications dans le fichier .env pour la production."
-        )
-
-    if st.button("💾 Sauvegarder notifications", key="save_notifications"):
-        st.success("Paramètres de notifications sauvegardés!")
+# Section vérification config actuelle
+with st.expander("🔍 Configuration actuelle (Debug)", expanded=False):
+    st.subheader("Config Tempo dans la base de données")
+    config = fetch_tempo_config()
+    st.json(config)
+    
+    st.subheader("Correspondance")
+    st.write(f"- `enabled`: {config.get('enabled')}")
+    st.write(f"- `target_soc_red`: {config.get('target_soc_red')}%")
+    st.write(f"- `precharge_hour`: {config.get('precharge_hour')}")
+    st.write(f"- `precharge_power`: {config.get('precharge_power')}W (négatif = charge)")

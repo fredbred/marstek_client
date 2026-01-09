@@ -1,7 +1,7 @@
 """API routes for battery management."""
 
 import structlog
-from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from slowapi import Limiter
 from slowapi.util import get_remote_address
 from sqlalchemy import select
@@ -99,9 +99,17 @@ async def get_battery_status(
                 detail=f"Error retrieving status: {status_data['error']}",
             )
 
-        bat_status = status_data.get("bat_status", {})
-        es_status = status_data.get("es_status", {})
-        mode_info = status_data.get("mode_info", {})
+        bat_status = status_data.get("bat_status") or {}
+        es_status = status_data.get("es_status") or {}
+        mode_info = status_data.get("mode_info") or {}
+        is_stale = status_data.get("stale", False)
+
+        # Si bat_status est vide (timeout), retourner une erreur
+        if not bat_status and not is_stale:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail=f"Battery {battery_id} data not available (Bat.GetStatus timeout)",
+            )
 
         from datetime import datetime
 
@@ -125,6 +133,81 @@ async def get_battery_status(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Error retrieving battery status: {str(e)}",
+        )
+
+
+@router.post("/{battery_id}/refresh", response_model=BatteryStatusResponse)
+@limiter.limit("3/minute")
+async def refresh_battery_status(
+    request: Request,
+    battery_id: int,
+    db: AsyncSession = Depends(get_db_session),
+    manager: BatteryManager = Depends(get_battery_manager),
+) -> BatteryStatusResponse:
+    """Force le rafraîchissement du cache pour une batterie.
+
+    Args:
+        battery_id: ID de la batterie
+
+    Returns:
+        Status mis à jour de la batterie
+    """
+    try:
+        # Vérifier que la batterie existe
+        stmt = select(Battery).where(Battery.id == battery_id)
+        result = await db.execute(stmt)
+        battery = result.scalar_one_or_none()
+
+        if not battery:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Battery {battery_id} not found",
+            )
+
+        # Rafraîchir le cache
+        logger.info("battery_refresh_requested", battery_id=battery_id)
+        status_data = await manager.refresh_single_battery(battery)
+
+        if "error" in status_data:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail=f"Error refreshing status: {status_data['error']}",
+            )
+
+        bat_status = status_data.get("bat_status") or {}
+        es_status = status_data.get("es_status") or {}
+        mode_info = status_data.get("mode_info") or {}
+        is_stale = status_data.get("stale", False)
+
+        # Si bat_status est vide (timeout), retourner une erreur
+        if not bat_status and not is_stale:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail=f"Battery {battery_id} data not available (Bat.GetStatus timeout)",
+            )
+
+        from datetime import datetime
+
+        return BatteryStatusResponse(
+            battery_id=battery_id,
+            timestamp=datetime.utcnow(),
+            soc=bat_status.get("soc", 0),
+            bat_power=es_status.get("bat_power"),
+            pv_power=es_status.get("pv_power"),
+            ongrid_power=es_status.get("ongrid_power"),
+            offgrid_power=es_status.get("offgrid_power"),
+            mode=mode_info.get("mode", "Unknown"),
+            bat_temp=bat_status.get("bat_temp"),
+            bat_capacity=bat_status.get("bat_capacity"),
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error("battery_refresh_error", battery_id=battery_id, error=str(e))
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error refreshing battery status: {str(e)}",
         )
 
 
@@ -215,3 +298,53 @@ async def update_battery(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Error updating battery: {str(e)}",
         )
+
+
+@router.get("/history/power")
+async def get_power_history(
+    hours: int = Query(default=24, ge=1, le=168),
+    db: AsyncSession = Depends(get_db_session),
+) -> list[dict]:
+    """Récupère l'historique de puissance pour le graphique.
+
+    Args:
+        hours: Nombre d'heures d'historique (1-168, défaut: 24)
+        db: Database session
+
+    Returns:
+        Liste de points {timestamp, power} pour le graphique
+    """
+    from datetime import datetime, timedelta
+    from sqlalchemy import select, func
+    from app.models import BatteryStatusLog
+
+    try:
+        # Calculer la date de début
+        start_time = datetime.utcnow() - timedelta(hours=hours)
+
+        # Récupérer les logs agrégés par heure
+        hour_col = func.date_trunc('hour', BatteryStatusLog.timestamp)
+        stmt = (
+            select(
+                hour_col.label('hour'),
+                func.sum(BatteryStatusLog.ongrid_power).label('total_power'),
+            )
+            .where(BatteryStatusLog.timestamp >= start_time)
+            .group_by(hour_col)
+            .order_by(hour_col)
+        )
+
+        result = await db.execute(stmt)
+        rows = result.all()
+
+        return [
+            {
+                "timestamp": row.hour.isoformat() if row.hour else None,
+                "power": float(row.total_power) if row.total_power else 0,
+            }
+            for row in rows
+        ]
+
+    except Exception as e:
+        logger.error("power_history_error", error=str(e))
+        return []

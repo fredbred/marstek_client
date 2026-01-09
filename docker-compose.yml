@@ -4,6 +4,7 @@ services:
     image: timescale/timescaledb:latest-pg15
     container_name: marstek-postgres
     environment:
+      TZ: Europe/Paris
       POSTGRES_USER: ${POSTGRES_USER:-marstek}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-changeme}
       POSTGRES_DB: ${POSTGRES_DB:-marstek_db}
@@ -46,6 +47,7 @@ services:
       redis:
         condition: service_healthy
     environment:
+      - TZ=Europe/Paris
       - DATABASE_URL=${DATABASE_URL}
       - REDIS_URL=${REDIS_URL}
       - APP_ENV=${APP_ENV:-production}
@@ -82,7 +84,7 @@ services:
       - "${API_PORT:-8000}:8000"
     network_mode: host  # Required for UDP communication with batteries
     restart: unless-stopped
-    command: .venv/bin/uvicorn app.main:app --host ${API_HOST:-0.0.0.0} --port ${API_PORT:-8000}
+    command: poetry run uvicorn app.main:app --host ${API_HOST:-0.0.0.0} --port ${API_PORT:-8000}
 
   worker:
     build:
@@ -94,6 +96,7 @@ services:
       - redis
       - backend
     environment:
+      - TZ=Europe/Paris
       - DATABASE_URL=${DATABASE_URL}
       - REDIS_URL=${REDIS_URL}
       - APP_ENV=${APP_ENV:-production}
@@ -117,6 +120,7 @@ services:
       - postgres
       - redis
     environment:
+      - TZ=Europe/Paris
       - DATABASE_URL=${DATABASE_URL}
       - REDIS_URL=${REDIS_URL}
       - API_URL=http://localhost:8000

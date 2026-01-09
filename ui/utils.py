@@ -17,8 +17,15 @@ def _debug_log(hypothesis_id, location, message, data=None):
     """Helper function for debug logging."""
     try:
         import json
+        import os
         from datetime import datetime
-        log_path = "/app/.cursor/debug.log"
+        # Déterminer le chemin du log selon l'environnement (conteneur ou hôte)
+        if os.path.exists("/.dockerenv"):
+            log_path = "/app/.cursor/debug.log"
+        else:
+            log_path = "/home/fred/marstek_client/.cursor/debug.log"
+        # Créer le dossier si nécessaire
+        os.makedirs(os.path.dirname(log_path), exist_ok=True)
         log_entry = {
             "sessionId": "debug-session",
             "runId": "run1",
@@ -30,8 +37,14 @@ def _debug_log(hypothesis_id, location, message, data=None):
         }
         with open(log_path, "a") as f:
             f.write(json.dumps(log_entry) + "\n")
-    except Exception:
-        pass
+    except Exception as e:
+        # Log l'erreur dans un fichier alternatif si le log principal échoue
+        try:
+            alt_log = "/tmp/debug_log_error.txt"
+            with open(alt_log, "a") as f:
+                f.write(f"Error writing debug log: {e}\n")
+        except Exception:
+            pass
 # #endregion
 
 
@@ -42,10 +55,36 @@ def check_api_health() -> bool:
     Returns:
         True if API is online, False otherwise
     """
+    # #region agent log
+    _debug_log("A", "utils.py:check_api_health:entry", "check_api_health called", {"api_base_url": API_BASE_URL, "health_url": f"{API_BASE_URL}/health"})
+    # #endregion
     try:
+        # #region agent log
+        _debug_log("B", "utils.py:check_api_health:before_request", "Before httpx.get", {"url": f"{API_BASE_URL}/health", "timeout": 5.0})
+        # #endregion
         response = httpx.get(f"{API_BASE_URL}/health", timeout=5.0)
-        return response.status_code == 200
-    except Exception:
+        # #region agent log
+        _debug_log("C", "utils.py:check_api_health:response", "Response received", {"status_code": response.status_code})
+        # #endregion
+        result = response.status_code == 200
+        # #region agent log
+        _debug_log("D", "utils.py:check_api_health:result", "Health check result", {"is_healthy": result, "status_code": response.status_code})
+        # #endregion
+        return result
+    except httpx.TimeoutException as e:
+        # #region agent log
+        _debug_log("E", "utils.py:check_api_health:timeout", "Request timeout", {"error": str(e), "error_type": type(e).__name__})
+        # #endregion
+        return False
+    except httpx.ConnectError as e:
+        # #region agent log
+        _debug_log("F", "utils.py:check_api_health:connect_error", "Connection error", {"error": str(e), "error_type": type(e).__name__})
+        # #endregion
+        return False
+    except Exception as e:
+        # #region agent log
+        _debug_log("G", "utils.py:check_api_health:exception", "Unexpected exception", {"error": str(e), "error_type": type(e).__name__})
+        # #endregion
         return False
 
 def fetch_batteries() -> list[dict[str, Any]]:
@@ -90,8 +129,12 @@ def fetch_battery_status(battery_id: int) -> dict[str, Any] | None:
         )
         response.raise_for_status()
         return response.json()
+    except httpx.HTTPStatusError as e:
+        # 503 = données non disponibles (rate limiting batteries)
+        # Ne pas afficher d'erreur, la carte affichera "Hors ligne"
+        return None
     except Exception as e:
-        st.error(f"Erreur lors de la récupération du status de la batterie {battery_id}: {e}")
+        # Erreurs réseau ou autres - log mais pas d'erreur visible
         return None
 
 def fetch_batteries_status() -> list[dict[str, Any]]:
@@ -155,23 +198,22 @@ def fetch_power_history(hours: int = 24) -> pd.DataFrame:
     Returns:
         DataFrame with power data
     """
-    # TODO: Implement when history endpoint is available
-    # For now, return empty DataFrame
     try:
-        # Create date range and ensure same length
-        end_time = datetime.now()
-        start_time = end_time - timedelta(hours=hours)
-        timestamps = pd.date_range(start=start_time, end=end_time, freq="H", inclusive="left")
-        # Ensure power array matches timestamp length
-        power_values = [0] * len(timestamps)
-        return pd.DataFrame(
-            {
-                "timestamp": timestamps,
-                "power": power_values,
-            }
+        response = httpx.get(
+            f"{API_BASE_URL}/api/v1/batteries/history/power",
+            params={"hours": hours},
+            timeout=API_TIMEOUT,
         )
+        response.raise_for_status()
+        data = response.json()
+        
+        if not data:
+            return pd.DataFrame(columns=["timestamp", "power"])
+        
+        df = pd.DataFrame(data)
+        df["timestamp"] = pd.to_datetime(df["timestamp"])
+        return df
     except Exception:
-        # Return empty DataFrame on error
         return pd.DataFrame(columns=["timestamp", "power"])
 
 def fetch_tempo_today() -> str:

@@ -16,13 +16,19 @@ def battery_card(battery_data: dict[str, Any]) -> None:
     soc = battery_data.get("soc", 0)
     power = battery_data.get("bat_power", 0) or battery_data.get("power", 0)
     mode = battery_data.get("mode", "Unknown")
-    is_offline = battery_data.get("error", False)
+    error_msg = battery_data.get("error")
+    is_offline = error_msg is True or error_msg == "No cached data - wait for scheduler"
+    is_stale = isinstance(error_msg, str) and "timeout" in error_msg.lower()
+    cache_age = battery_data.get("cache_age_seconds", 0)
+    is_cache_old = cache_age > 600  # Plus de 10 minutes
 
     # Card container
     with st.container():
         # Header
         if is_offline:
             st.error(f"🔋 {battery_name} - 📴 Hors ligne")
+        elif is_stale or is_cache_old:
+            st.warning(f"🔋 {battery_name} - ⚠️ Données en cache")
         else:
             st.subheader(f"🔋 {battery_name}")
 

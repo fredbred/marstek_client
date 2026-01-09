@@ -504,6 +504,18 @@ class MarstekUDPClient:
             bat_soc=result.get("bat_soc"),
         )
 
+    async def _wake_up_device(self, ip: str, port: int) -> None:
+        """Envoie une commande de réveil avant les opérations importantes."""
+        try:
+            # Envoyer un GetDevice pour réveiller la batterie
+            await self.get_device_info(ip, port)
+            logger.info("device_wakeup_success", ip=ip, port=port)
+        except Exception as e:
+            logger.warning("device_wakeup_failed", ip=ip, port=port, error=str(e))
+        # Attendre 2 secondes après le réveil
+        import asyncio
+        await asyncio.sleep(2.0)
+
     async def set_mode_auto(
         self, ip: str, port: int, instance_id: int | None = None
     ) -> bool:
@@ -520,6 +532,9 @@ class MarstekUDPClient:
         Raises:
             MarstekAPIError: If command fails
         """
+        # Réveiller la batterie d'abord
+        await self._wake_up_device(ip, port)
+        
         if instance_id is None:
             instance_id = self.instance_id
 
@@ -564,16 +579,78 @@ class MarstekUDPClient:
         if instance_id is None:
             instance_id = self.instance_id
 
+        manual_cfg = config.model_dump()
         command = {
             "method": "ES.SetMode",
             "params": {
                 "id": instance_id,
                 "config": {
                     "mode": "Manual",
-                    "manual_cfg": config.model_dump(),
+                    "manual_cfg": manual_cfg,
                 },
             },
         }
+        
+        logger.info(
+            "set_mode_manual_request",
+            ip=ip,
+            port=port,
+            instance_id=instance_id,
+            manual_cfg=manual_cfg,
+        )
+        
+        # Réveiller la batterie d'abord
+        await self._wake_up_device(ip, port)
+
+        response = await self.send_command(ip, port, command)
+
+        if "result" not in response:
+            raise MarstekAPIError(
+                "No result in response", method="ES.SetMode", response=response
+            )
+
+        result = SetModeResult(**response["result"])
+        return result.set_result
+
+    async def set_mode_passive(
+        self, ip: str, port: int, power: int, cd_time: int, instance_id: int | None = None
+    ) -> bool:
+        """Set device to Passive mode for direct power control.
+
+        Args:
+            ip: Device IP address
+            port: Device UDP port
+            power: Power in watts (negative=charge, positive=discharge)
+            cd_time: Duration in seconds
+            instance_id: Instance ID (default: self.instance_id)
+
+        Returns:
+            True if successful, False otherwise
+        """
+        if instance_id is None:
+            instance_id = self.instance_id
+
+        command = {
+            "method": "ES.SetMode",
+            "params": {
+                "id": instance_id,
+                "config": {
+                    "mode": "Passive",
+                    "passive_cfg": {
+                        "power": power,
+                        "cd_time": cd_time,
+                    },
+                },
+            },
+        }
+
+        logger.info(
+            "set_mode_passive_request",
+            ip=ip,
+            port=port,
+            power=power,
+            cd_time=cd_time,
+        )
 
         response = await self.send_command(ip, port, command)
 

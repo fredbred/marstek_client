@@ -122,8 +122,8 @@ def _register_jobs(scheduler: AsyncIOScheduler) -> None:
         max_instances=1,
     )
 
-    # Job: Monitoring batteries toutes les 10 minutes (espacé pour éviter instabilité)
-    # Note: Batteries Marstek deviennent instables si interrogées trop fréquemment (<60s)
+    # Job: Monitoring batteries toutes les 10 minutes (éviter rate limiting)
+    # Note: Batteries Marstek instables si interrogées trop fréquemment
     scheduler.add_job(
         job_monitor_batteries,
         trigger=IntervalTrigger(minutes=10, timezone=settings.scheduler.timezone),
@@ -133,10 +133,17 @@ def _register_jobs(scheduler: AsyncIOScheduler) -> None:
         max_instances=1,
     )
 
-    # Health check supprimé car trop fréquent (1min causait instabilité des batteries)
-    # La vérification de santé est maintenant intégrée dans job_monitor_batteries
+    # Job: Health check toutes les 30 minutes (éviter rate limiting batteries)
+    scheduler.add_job(
+        job_health_check,
+        trigger=IntervalTrigger(minutes=30, timezone=settings.scheduler.timezone),
+        id="health_check",
+        name="Battery health check (every 30min)",
+        replace_existing=True,
+        max_instances=1,
+    )
 
-    logger.info("scheduler_jobs_registered", job_count=4)
+    logger.info("scheduler_jobs_registered", job_count=5)
 
 
 def _setup_shutdown_handlers() -> None:

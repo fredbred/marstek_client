@@ -8,7 +8,7 @@ from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from slowapi.util import get_remote_address
 
-from app.api.routes import batteries, modes, scheduler, tempo
+from app.api.routes import batteries, config, modes, scheduler, tempo
 from app.config import get_settings
 from app.core.logger import configure_logging, get_logger
 from app.database import init_db
@@ -101,6 +101,7 @@ app.include_router(batteries.router, prefix="/api/v1")
 app.include_router(modes.router, prefix="/api/v1")
 app.include_router(scheduler.router, prefix="/api/v1")
 app.include_router(tempo.router, prefix="/api/v1")
+app.include_router(config.router, prefix="/api/v1")
 
 if __name__ == "__main__":
     import uvicorn

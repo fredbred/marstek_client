@@ -104,14 +104,14 @@ class ManualConfig(BaseModel):
         ge=0,
         le=127,
     )
-    power: int = Field(description="Setting power [W]", ge=0)
-    enable: bool = Field(description="ON: 1; OFF: 0")
+    power: int = Field(description="Setting power [W], positive=discharge, negative=charge")
+    enable: int = Field(description="ON: 1; OFF: 0", ge=0, le=1)
 
 
 class PassiveConfig(BaseModel):
     """Configuration for Passive mode."""
 
-    power: int = Field(description="Setting power [W]", ge=0)
+    power: int = Field(description="Setting power [W], positive=discharge, negative=charge")
     cd_time: int = Field(description="Power countdown [s]", ge=0)
 
 
@@ -142,3 +142,10 @@ class SetModeResult(BaseModel):
     set_result: bool = Field(
         description="true: succeeded in setting; false: failed in setting"
     )
+
+
+class PassiveConfig(BaseModel):
+    """Configuration for Passive mode (direct power control)."""
+
+    power: int = Field(description="Power [W], negative=charge from grid, positive=discharge to grid")
+    cd_time: int = Field(description="Countdown time [s], duration of the mode", ge=0)
