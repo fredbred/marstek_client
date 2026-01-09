@@ -33,7 +33,9 @@ class ModeController:
         self.battery_manager = battery_manager
         self.notification_service = notification_service
 
-    async def switch_to_auto_mode(self, db: AsyncSession, max_retries: int = 3) -> dict[int, bool]:
+    async def switch_to_auto_mode(
+        self, db: AsyncSession, max_retries: int = 3
+    ) -> dict[int, bool]:
         """Passe toutes les batteries en mode AUTO pour la journée (6h-22h).
 
         Args:
@@ -44,18 +46,21 @@ class ModeController:
             Dictionnaire {battery_id: success} indiquant le succès pour chaque batterie
         """
         import asyncio
+
         logger.info("switching_to_auto_mode", max_retries=max_retries)
 
         mode_config = {"mode": "auto"}
 
         results = await self.battery_manager.set_mode_all(db, mode_config)
-        
+
         # Retry pour les batteries en échec
         for retry in range(1, max_retries):
             failed = [bid for bid, success in results.items() if not success]
             if not failed:
                 break
-            logger.info("retrying_failed_batteries", retry=retry, failed_batteries=failed)
+            logger.info(
+                "retrying_failed_batteries", retry=retry, failed_batteries=failed
+            )
             await asyncio.sleep(60.0)  # 60s avant retry
             retry_results = await self.battery_manager.set_mode_all(db, mode_config)
             for bid, success in retry_results.items():
@@ -96,7 +101,9 @@ class ModeController:
 
         return results
 
-    async def switch_to_manual_night(self, db: AsyncSession, max_retries: int = 3) -> dict[int, bool]:
+    async def switch_to_manual_night(
+        self, db: AsyncSession, max_retries: int = 3
+    ) -> dict[int, bool]:
         """Passe toutes les batteries en mode MANUAL pour la nuit HC (22h-6h).
 
         Si demain est un jour rouge Tempo, charge les batteries.
@@ -110,18 +117,20 @@ class ModeController:
             Dictionnaire {battery_id: success} indiquant le succès pour chaque batterie
         """
         import asyncio
+
         from sqlalchemy import select
-        from app.models import AppConfig
+
         from app.core.tempo_service import TempoService
-        
+        from app.models import AppConfig
+
         # Vérifier si demain est un jour rouge Tempo
         is_red_tomorrow = False
         precharge_power = -1000  # Valeur par défaut pour charge
-        
+
         try:
             async with TempoService() as tempo_service:
                 is_red_tomorrow = await tempo_service.should_activate_precharge()
-            
+
             if is_red_tomorrow:
                 # Récupérer la puissance de précharge depuis la config
                 stmt = select(AppConfig).where(AppConfig.key == "tempo_precharge_power")
@@ -131,24 +140,27 @@ class ModeController:
                     precharge_power = int(config.value)
         except Exception as e:
             logger.warning("tempo_check_failed_in_manual_night", error=str(e))
-        
+
         if is_red_tomorrow:
-            logger.info("switching_to_manual_night_CHARGE_PASSIVE", 
-                       max_retries=max_retries, 
-                       reason="jour_rouge_demain",
-                       power=precharge_power)
-            
+            logger.info(
+                "switching_to_manual_night_CHARGE_PASSIVE",
+                max_retries=max_retries,
+                reason="jour_rouge_demain",
+                power=precharge_power,
+            )
+
             # Utiliser mode PASSIVE pour la charge forcée (8h = 28800s)
             from sqlalchemy import select as sql_select
+
             from app.models import Battery
-            
+
             stmt = sql_select(Battery).where(Battery.is_active)
             result = await db.execute(stmt)
             batteries = result.scalars().all()
-            
+
             results: dict[int, bool] = {}
             cd_time = 28800  # 8 heures
-            
+
             for battery in batteries:
                 try:
                     success = await self.battery_manager.client.set_mode_passive(
@@ -171,9 +183,9 @@ class ModeController:
                         error=str(e),
                     )
                     results[battery.id] = False
-            
+
             return results
-        
+
         logger.info("switching_to_manual_night_STANDBY", max_retries=max_retries)
         power_setting = 0  # Standby normal
 
@@ -193,7 +205,7 @@ class ModeController:
         }
 
         results = await self.battery_manager.set_mode_all(db, mode_config)
-        
+
         # Retry pour les batteries en échec
         for retry in range(1, max_retries):
             failed = [bid for bid, success in results.items() if not success]
@@ -245,7 +257,7 @@ class ModeController:
     ) -> dict[int, bool]:
         """Active la charge forcée la veille d'un jour rouge Tempo.
 
-        Configure les batteries pour charger depuis le réseau jusqu'à target_soc% 
+        Configure les batteries pour charger depuis le réseau jusqu'à target_soc%
         avant le jour rouge.
 
         Args:
@@ -256,20 +268,23 @@ class ModeController:
         Returns:
             Dictionnaire {battery_id: success} indiquant le succès pour chaque batterie
         """
-        logger.info("activating_tempo_precharge", target_soc=target_soc, power_limit=power_limit)
+        logger.info(
+            "activating_tempo_precharge", target_soc=target_soc, power_limit=power_limit
+        )
 
         # Pour la précharge Tempo, on utilise le mode PASSIVE avec power négatif
         # pour forcer la charge depuis le réseau (durée 8h = 28800s)
         from sqlalchemy import select
+
         from app.models import Battery
-        
+
         stmt = select(Battery).where(Battery.is_active)
         result = await db.execute(stmt)
         batteries = result.scalars().all()
-        
+
         results: dict[int, bool] = {}
         cd_time = 28800  # 8 heures
-        
+
         for battery in batteries:
             try:
                 success = await self.battery_manager.client.set_mode_passive(

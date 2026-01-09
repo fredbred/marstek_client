@@ -315,7 +315,9 @@ async def get_power_history(
         Liste de points {timestamp, power} pour le graphique
     """
     from datetime import datetime, timedelta
-    from sqlalchemy import select, func
+
+    from sqlalchemy import func, select
+
     from app.models import BatteryStatusLog
 
     try:
@@ -323,11 +325,11 @@ async def get_power_history(
         start_time = datetime.utcnow() - timedelta(hours=hours)
 
         # Récupérer les logs agrégés par heure
-        hour_col = func.date_trunc('hour', BatteryStatusLog.timestamp)
+        hour_col = func.date_trunc("hour", BatteryStatusLog.timestamp)
         stmt = (
             select(
-                hour_col.label('hour'),
-                func.sum(BatteryStatusLog.ongrid_power).label('total_power'),
+                hour_col.label("hour"),
+                func.sum(BatteryStatusLog.ongrid_power).label("total_power"),
             )
             .where(BatteryStatusLog.timestamp >= start_time)
             .group_by(hour_col)

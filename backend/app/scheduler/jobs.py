@@ -18,13 +18,13 @@ async def job_switch_to_auto() -> None:
     de la journée (6h-22h).
     """
     from datetime import datetime
-    
+
     start_time = datetime.now()
     logger.info(
-        "scheduled_job_started", 
+        "scheduled_job_started",
         job="switch_to_auto",
         start_time=start_time.isoformat(),
-        description="Passage en mode AUTO pour consommation journée"
+        description="Passage en mode AUTO pour consommation journée",
     )
 
     async with async_session_maker() as db:
@@ -37,7 +37,7 @@ async def job_switch_to_auto() -> None:
             success_count = sum(1 for success in results.values() if success)
             total_count = len(results)
             failed_batteries = [bid for bid, success in results.items() if not success]
-            
+
             end_time = datetime.now()
             duration = (end_time - start_time).total_seconds()
 
@@ -51,7 +51,7 @@ async def job_switch_to_auto() -> None:
                 end_time=end_time.isoformat(),
                 results=results,
             )
-            
+
             # Log individuel par batterie pour traçabilité
             for battery_id, success in results.items():
                 logger.info(
@@ -79,13 +79,13 @@ async def job_switch_to_manual_night() -> None:
     pendant les heures creuses.
     """
     from datetime import datetime
-    
+
     start_time = datetime.now()
     logger.info(
-        "scheduled_job_started", 
+        "scheduled_job_started",
         job="switch_to_manual_night",
         start_time=start_time.isoformat(),
-        description="Passage en mode MANUAL 0W pour nuit HC"
+        description="Passage en mode MANUAL 0W pour nuit HC",
     )
 
     async with async_session_maker() as db:
@@ -98,7 +98,7 @@ async def job_switch_to_manual_night() -> None:
             success_count = sum(1 for success in results.values() if success)
             total_count = len(results)
             failed_batteries = [bid for bid, success in results.items() if not success]
-            
+
             end_time = datetime.now()
             duration = (end_time - start_time).total_seconds()
 
@@ -112,7 +112,7 @@ async def job_switch_to_manual_night() -> None:
                 end_time=end_time.isoformat(),
                 results=results,
             )
-            
+
             # Log individuel par batterie
             for battery_id, success in results.items():
                 logger.info(
@@ -155,14 +155,17 @@ async def job_check_tempo_tomorrow() -> None:
 
             # Récupérer la config Tempo depuis la base
             from sqlalchemy import select
+
             from app.models import AppConfig
-            
-            stmt = select(AppConfig).where(AppConfig.key.in_(["tempo_target_soc_red", "tempo_precharge_power"]))
+
+            stmt = select(AppConfig).where(
+                AppConfig.key.in_(["tempo_target_soc_red", "tempo_precharge_power"])
+            )
             result = await db.execute(stmt)
             configs = {row.key: row.value for row in result.scalars().all()}
             target_soc = int(configs.get("tempo_target_soc_red", "95"))
             precharge_power = int(configs.get("tempo_precharge_power", "2000"))
-            
+
             # Vérifier si précharge nécessaire
             async with TempoService() as tempo_service:
                 should_activate = await tempo_service.should_activate_precharge()
@@ -214,25 +217,31 @@ async def job_monitor_batteries() -> None:
 
     async with async_session_maker() as db:
         try:
-            from sqlalchemy import select
+            from sqlalchemy import select, update
+
             from app.models import Battery
-            
+
             manager = BatteryManager()
-            
+
             # Récupérer les batteries actives
             stmt = select(Battery).where(Battery.is_active)
             result = await db.execute(stmt)
             batteries = result.scalars().all()
-            
+
             # Rafraîchir chaque batterie avec délai de 120s
             for i, battery in enumerate(batteries):
-                logger.info("refreshing_battery", battery_id=battery.id, index=i+1, total=len(batteries))
+                logger.info(
+                    "refreshing_battery",
+                    battery_id=battery.id,
+                    index=i + 1,
+                    total=len(batteries),
+                )
                 await manager.refresh_single_battery(battery)
-                
+
                 # Attendre 120s avant la prochaine batterie (sauf la dernière)
                 if i < len(batteries) - 1:
                     await asyncio.sleep(120.0)
-            
+
             # Récupérer les status depuis le cache
             status_dict = await manager.get_all_status(db)
 
@@ -326,7 +335,7 @@ async def job_health_check() -> None:
             for i, battery in enumerate(batteries):
                 if i > 0:
                     await asyncio.sleep(3)  # 3 secondes entre chaque batterie
-                
+
                 try:
                     # Tentative de récupération du status (test de connectivité)
                     await manager.client.get_device_info(

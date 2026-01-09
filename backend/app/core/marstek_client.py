@@ -514,6 +514,7 @@ class MarstekUDPClient:
             logger.warning("device_wakeup_failed", ip=ip, port=port, error=str(e))
         # Attendre 2 secondes après le réveil
         import asyncio
+
         await asyncio.sleep(2.0)
 
     async def set_mode_auto(
@@ -534,7 +535,7 @@ class MarstekUDPClient:
         """
         # Réveiller la batterie d'abord
         await self._wake_up_device(ip, port)
-        
+
         if instance_id is None:
             instance_id = self.instance_id
 
@@ -590,7 +591,7 @@ class MarstekUDPClient:
                 },
             },
         }
-        
+
         logger.info(
             "set_mode_manual_request",
             ip=ip,
@@ -598,7 +599,7 @@ class MarstekUDPClient:
             instance_id=instance_id,
             manual_cfg=manual_cfg,
         )
-        
+
         # Réveiller la batterie d'abord
         await self._wake_up_device(ip, port)
 
@@ -613,7 +614,12 @@ class MarstekUDPClient:
         return result.set_result
 
     async def set_mode_passive(
-        self, ip: str, port: int, power: int, cd_time: int, instance_id: int | None = None
+        self,
+        ip: str,
+        port: int,
+        power: int,
+        cd_time: int,
+        instance_id: int | None = None,
     ) -> bool:
         """Set device to Passive mode for direct power control.
 

@@ -12,6 +12,7 @@ from apscheduler.triggers.interval import IntervalTrigger
 from app.config import get_settings
 from app.scheduler.jobs import (
     job_check_tempo_tomorrow,
+    job_health_check,
     job_monitor_batteries,
     job_switch_to_auto,
     job_switch_to_manual_night,

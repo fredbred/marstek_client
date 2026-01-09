@@ -127,7 +127,7 @@ class BatteryManager:
             Dictionnaire {battery_id: {status, es_status, mode_info}}
         """
         global _battery_status_cache, _battery_cache_timestamps
-        
+
         # Récupérer toutes les batteries actives
         stmt = select(Battery).where(Battery.is_active)
         result = await db.execute(stmt)
@@ -138,7 +138,7 @@ class BatteryManager:
             return {}
 
         status_dict: dict[int, dict[str, Any]] = {}
-        
+
         for battery in batteries:
             if battery.id in _battery_status_cache:
                 cache_time = _battery_cache_timestamps.get(battery.id, datetime.min)
@@ -146,8 +146,10 @@ class BatteryManager:
                 status_dict[battery.id] = _battery_status_cache[battery.id]
                 status_dict[battery.id]["cache_age_seconds"] = int(cache_age)
             else:
-                status_dict[battery.id] = {"error": "No cached data - wait for scheduler"}
-        
+                status_dict[battery.id] = {
+                    "error": "No cached data - wait for scheduler"
+                }
+
         return status_dict
 
     async def refresh_single_battery(self, battery: Battery) -> dict[str, Any]:
@@ -160,23 +162,29 @@ class BatteryManager:
             Status de la batterie
         """
         global _battery_status_cache, _battery_cache_timestamps
-        
+
         try:
             result = await self._get_single_battery_status(battery)
-            
+
             # Ne mettre à jour le cache que si on a des données valides (bat_status non null)
             if result.get("bat_status") is not None:
                 _battery_status_cache[battery.id] = result
                 _battery_cache_timestamps[battery.id] = datetime.utcnow()
-                logger.info("battery_cache_updated", battery_id=battery.id, success=True)
+                logger.info(
+                    "battery_cache_updated", battery_id=battery.id, success=True
+                )
             else:
                 # Données partielles : garder l'ancien cache si disponible
-                if battery.id in _battery_status_cache and _battery_status_cache[battery.id].get("bat_status"):
+                if battery.id in _battery_status_cache and _battery_status_cache[
+                    battery.id
+                ].get("bat_status"):
                     cache_age = _battery_cache_timestamps.get(battery.id, datetime.min)
                     logger.warning(
                         "battery_refresh_partial_keeping_old",
                         battery_id=battery.id,
-                        old_cache_age_seconds=int((datetime.utcnow() - cache_age).total_seconds()),
+                        old_cache_age_seconds=int(
+                            (datetime.utcnow() - cache_age).total_seconds()
+                        ),
                     )
                     # Marquer le cache comme stale mais garder les données
                     _battery_status_cache[battery.id]["stale"] = True
@@ -186,7 +194,7 @@ class BatteryManager:
                     _battery_status_cache[battery.id] = result
                     _battery_cache_timestamps[battery.id] = datetime.utcnow()
                     logger.warning("battery_cache_error_stored", battery_id=battery.id)
-            
+
             return result
         except Exception as e:
             logger.error("battery_refresh_failed", battery_id=battery.id, error=str(e))
@@ -209,7 +217,9 @@ class BatteryManager:
             mode_info: Any = None
 
             try:
-                bat_status = await self.client.get_battery_status(battery.ip_address, battery.udp_port)
+                bat_status = await self.client.get_battery_status(
+                    battery.ip_address, battery.udp_port
+                )
             except Exception as e:
                 bat_status = e
 
@@ -217,7 +227,9 @@ class BatteryManager:
             await asyncio.sleep(45.0)  # 30s requis pour éviter rate limiting
 
             try:
-                es_status = await self.client.get_es_status(battery.ip_address, battery.udp_port)
+                es_status = await self.client.get_es_status(
+                    battery.ip_address, battery.udp_port
+                )
             except Exception as e:
                 es_status = e
 
@@ -247,14 +259,16 @@ class BatteryManager:
 
             # Récupérer le mode avec délai supplémentaire
             await asyncio.sleep(45.0)  # 30s requis pour éviter rate limiting
-            
+
             try:
-                mode_info = await self.client.get_current_mode(battery.ip_address, battery.udp_port)
+                mode_info = await self.client.get_current_mode(
+                    battery.ip_address, battery.udp_port
+                )
                 result["mode_info"] = mode_info.model_dump()  # type: ignore[union-attr]
             except Exception as e:
                 logger.warning("mode_info_error", battery_id=battery.id, error=str(e))
                 result["mode_info"] = None
-            
+
             # Marquer comme incomplet si Bat.GetStatus a échoué
             if data_incomplete:
                 result["error"] = "Données partielles - Bat.GetStatus timeout"
@@ -297,16 +311,18 @@ class BatteryManager:
 
         # Appliquer le mode SÉQUENTIELLEMENT avec délais pour éviter rate limiting
         success_dict: dict[int, bool] = {}
-        
+
         for i, battery in enumerate(batteries):
             # Délai entre batteries (sauf la première)
             if i > 0:
                 logger.info("waiting_between_batteries", delay_seconds=30)
                 await asyncio.sleep(30.0)
-            
+
             try:
                 if mode == "auto":
-                    result = await self.client.set_mode_auto(battery.ip_address, battery.udp_port)
+                    result = await self.client.set_mode_auto(
+                        battery.ip_address, battery.udp_port
+                    )
                 elif mode == "manual":
                     manual_config = mode_config.get("config")
                     if not manual_config:
@@ -314,6 +330,7 @@ class BatteryManager:
                         result = False
                     else:
                         from app.models.marstek_api import ManualConfig
+
                         config = ManualConfig(**manual_config)
                         result = await self.client.set_mode_manual(
                             battery.ip_address, battery.udp_port, config
@@ -321,7 +338,7 @@ class BatteryManager:
                 else:
                     logger.error("unknown_mode", mode=mode, battery_id=battery.id)
                     result = False
-                
+
                 success_dict[battery.id] = result
                 logger.info(
                     "mode_set_success",

@@ -58,7 +58,9 @@ class ManualModeConfig(BaseModel):
         pattern=r"^([0-1][0-9]|2[0-3]):[0-5][0-9]$", description="End time [hh:mm]"
     )
     week_set: int = Field(ge=0, le=127, description="Week days bitmap")
-    power: int = Field(description="Power setpoint [W], positive=discharge, negative=charge")
+    power: int = Field(
+        description="Power setpoint [W], positive=discharge, negative=charge"
+    )
     enable: int = Field(ge=0, le=1, description="Enable (1) or disable (0)")
 
 
@@ -83,7 +85,9 @@ class ScheduleCreate(BaseModel):
     start_time: time
     end_time: time
     week_days: int = Field(default=127, ge=0, le=127, description="Week days bitmap")
-    power_setpoint: int = Field(default=0, description="Power setpoint [W], positive=discharge, negative=charge")
+    power_setpoint: int = Field(
+        default=0, description="Power setpoint [W], positive=discharge, negative=charge"
+    )
     is_active: bool = Field(default=True)
 
 

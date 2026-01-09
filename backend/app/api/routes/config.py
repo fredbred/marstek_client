@@ -1,6 +1,6 @@
 """API routes for application configuration."""
 
-from typing import Any
+# from typing import Any  # Unused
 
 import structlog
 from fastapi import APIRouter, Depends, HTTPException
