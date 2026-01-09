@@ -381,3 +381,28 @@ def fetch_logs(start_date: date, end_date: date) -> pd.DataFrame:
             "mode": [],
         }
     )
+
+
+def fetch_connectivity_history(battery_id: int | None = None) -> dict[str, Any]:
+    """Fetch connectivity history for batteries.
+
+    Args:
+        battery_id: Optional battery ID to filter
+
+    Returns:
+        Dictionary with connectivity history and summary
+    """
+    try:
+        params = {}
+        if battery_id is not None:
+            params["battery_id"] = battery_id
+
+        response = httpx.get(
+            f"{API_BASE_URL}/api/v1/batteries/connectivity/history",
+            params=params,
+            timeout=API_TIMEOUT,
+        )
+        response.raise_for_status()
+        return response.json()
+    except Exception as e:
+        return {"error": str(e), "batteries": {}}

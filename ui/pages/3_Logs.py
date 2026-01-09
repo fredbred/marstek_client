@@ -1,11 +1,11 @@
 """Logs and history page."""
 
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 
 import pandas as pd
 import streamlit as st
 
-from utils import fetch_logs
+from utils import fetch_connectivity_history, fetch_logs
 
 
 # #region agent log
@@ -191,3 +191,146 @@ with st.expander("📺 Visionneuse de logs en temps réel", expanded=False):
     if not logs_df.empty:
         recent_logs = logs_df.head(50)
         st.dataframe(recent_logs, use_container_width=True, hide_index=True)
+
+# Connectivity history section
+st.divider()
+st.subheader("🔌 Historique de Connectivité")
+st.caption("Suivi des connexions/déconnexions des batteries - utile pour détecter les resets API")
+
+# Fetch connectivity data
+connectivity_data = fetch_connectivity_history()
+
+if "error" in connectivity_data and connectivity_data.get("error"):
+    st.warning(f"Impossible de récupérer l'historique de connectivité: {connectivity_data['error']}")
+elif "batteries" in connectivity_data:
+    batteries_conn = connectivity_data.get("batteries", {})
+
+    if not batteries_conn:
+        st.info("Aucun historique de connectivité disponible. Les données apparaîtront après les premiers rafraîchissements.")
+    else:
+        # Summary cards
+        cols = st.columns(len(batteries_conn))
+        for idx, (battery_id, data) in enumerate(batteries_conn.items()):
+            with cols[idx]:
+                summary = data.get("summary", {})
+                status = summary.get("status", "unknown")
+
+                # Status indicator
+                if status == "online":
+                    status_icon = "🟢"
+                    status_text = "En ligne"
+                elif status == "degraded":
+                    status_icon = "🟡"
+                    status_text = "Dégradé"
+                elif status == "offline":
+                    status_icon = "🔴"
+                    status_text = "Hors ligne"
+                else:
+                    status_icon = "⚪"
+                    status_text = "Inconnu"
+
+                st.metric(
+                    label=f"Batterie {battery_id}",
+                    value=f"{status_icon} {status_text}",
+                    delta=f"{summary.get('success_rate', 0):.0f}% succès",
+                )
+
+                # Details
+                failures = summary.get("recent_consecutive_failures", 0)
+                if failures > 0:
+                    st.warning(f"⚠️ {failures} échec(s) consécutif(s)")
+
+        # Detailed history table
+        with st.expander("📊 Détails de l'historique", expanded=False):
+            for battery_id, data in batteries_conn.items():
+                st.markdown(f"### Batterie {battery_id}")
+
+                summary = data.get("summary", {})
+                col1, col2, col3, col4 = st.columns(4)
+
+                with col1:
+                    st.metric("Tentatives", summary.get("total_attempts", 0))
+                with col2:
+                    st.metric("Succès", summary.get("successes", 0))
+                with col3:
+                    st.metric("Échecs", summary.get("failures", 0))
+                with col4:
+                    st.metric("Taux de succès", f"{summary.get('success_rate', 0):.1f}%")
+
+                # Last success/failure
+                last_success = summary.get("last_success")
+                last_failure = summary.get("last_failure")
+
+                if last_success:
+                    st.success(f"✅ Dernier succès: {last_success}")
+                if last_failure:
+                    st.error(f"❌ Dernier échec: {last_failure}")
+
+                # Recent entries
+                recent = data.get("recent_entries", [])
+                if recent:
+                    st.markdown("**Entrées récentes:**")
+                    history_df = pd.DataFrame(recent)
+                    if not history_df.empty:
+                        # Format columns
+                        if "timestamp" in history_df.columns:
+                            history_df["timestamp"] = pd.to_datetime(history_df["timestamp"])
+                        if "success" in history_df.columns:
+                            history_df["status"] = history_df["success"].apply(
+                                lambda x: "✅ Succès" if x else "❌ Échec"
+                            )
+
+                        display_cols = ["timestamp", "status", "ip", "port", "error_type", "error_msg"]
+                        display_cols = [c for c in display_cols if c in history_df.columns]
+
+                        st.dataframe(
+                            history_df[display_cols],
+                            use_container_width=True,
+                            hide_index=True,
+                            column_config={
+                                "timestamp": "Date/Heure",
+                                "status": "Statut",
+                                "ip": "IP",
+                                "port": "Port",
+                                "error_type": "Type d'erreur",
+                                "error_msg": "Message",
+                            },
+                        )
+
+                st.divider()
+
+        # Alerts section
+        st.markdown("### ⚠️ Alertes et Actions Recommandées")
+
+        has_issues = False
+        for battery_id, data in batteries_conn.items():
+            summary = data.get("summary", {})
+            status = summary.get("status", "unknown")
+            failures = summary.get("recent_consecutive_failures", 0)
+
+            if status in ["degraded", "offline"] or failures >= 3:
+                has_issues = True
+                st.error(
+                    f"""
+                    **Batterie {battery_id}** - {failures} échecs consécutifs
+
+                    **Causes possibles:**
+                    - API locale désactivée sur la batterie
+                    - Port UDP modifié
+                    - Batterie redémarrée (perte de config)
+                    - Bug firmware v153
+
+                    **Actions recommandées:**
+                    1. Vérifier dans l'app Marstek que l'API est activée
+                    2. Vérifier que le port UDP est correct
+                    3. Redémarrer la batterie si nécessaire
+                    """
+                )
+
+        if not has_issues:
+            st.success("✅ Toutes les batteries sont en ligne et fonctionnent correctement.")
+else:
+    # Single battery response
+    if "summary" in connectivity_data:
+        summary = connectivity_data.get("summary", {})
+        st.json(summary)
