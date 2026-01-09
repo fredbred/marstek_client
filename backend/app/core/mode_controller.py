@@ -154,9 +154,9 @@ class ModeController:
 
             from app.models import Battery
 
-            stmt = sql_select(Battery).where(Battery.is_active)
-            result = await db.execute(stmt)
-            batteries = result.scalars().all()
+            battery_stmt = sql_select(Battery).where(Battery.is_active)
+            battery_result = await db.execute(battery_stmt)
+            batteries = battery_result.scalars().all()
 
             results: dict[int, bool] = {}
             cd_time = 28800  # 8 heures

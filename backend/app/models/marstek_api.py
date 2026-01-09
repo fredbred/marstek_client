@@ -146,12 +146,3 @@ class SetModeResult(BaseModel):
     set_result: bool = Field(
         description="true: succeeded in setting; false: failed in setting"
     )
-
-
-class PassiveConfig(BaseModel):
-    """Configuration for Passive mode (direct power control)."""
-
-    power: int = Field(
-        description="Power [W], negative=charge from grid, positive=discharge to grid"
-    )
-    cd_time: int = Field(description="Countdown time [s], duration of the mode", ge=0)

@@ -245,7 +245,7 @@ class BatteryManager:
                 result["bat_status"] = None
                 data_incomplete = True
             else:
-                result["bat_status"] = bat_status.model_dump()  # type: ignore[union-attr]
+                result["bat_status"] = bat_status.model_dump()
 
             if isinstance(es_status, Exception):
                 logger.warning(
@@ -255,7 +255,7 @@ class BatteryManager:
                 )
                 result["es_status"] = None
             else:
-                result["es_status"] = es_status.model_dump()  # type: ignore[union-attr]
+                result["es_status"] = es_status.model_dump()
 
             # Récupérer le mode avec délai supplémentaire
             await asyncio.sleep(45.0)  # 30s requis pour éviter rate limiting
@@ -264,7 +264,7 @@ class BatteryManager:
                 mode_info = await self.client.get_current_mode(
                     battery.ip_address, battery.udp_port
                 )
-                result["mode_info"] = mode_info.model_dump()  # type: ignore[union-attr]
+                result["mode_info"] = mode_info.model_dump()
             except Exception as e:
                 logger.warning("mode_info_error", battery_id=battery.id, error=str(e))
                 result["mode_info"] = None
@@ -299,8 +299,8 @@ class BatteryManager:
         """
         # Récupérer toutes les batteries actives
         stmt = select(Battery).where(Battery.is_active)
-        result = await db.execute(stmt)
-        batteries = result.scalars().all()
+        db_result = await db.execute(stmt)
+        batteries = db_result.scalars().all()
 
         if not batteries:
             logger.warning("no_active_batteries_for_mode_change")
