@@ -107,8 +107,10 @@ services:
     volumes:
       - ./backend:/app
       - ./logs:/app/logs
+    networks:
+      - marstek-network
     restart: unless-stopped
-    command: python -m app.worker
+    command: poetry run python -m app.worker
 
   ui:
     build:
