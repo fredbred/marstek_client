@@ -52,16 +52,29 @@ async def get_current_modes(
         for battery in batteries:
             if battery.id in status_dict:
                 status_data = status_dict[battery.id]
-                mode_info = status_data.get("mode_info", {})
+                # Handle case where mode_info is None or missing
+                mode_info = status_data.get("mode_info") or {}
 
                 modes.append(
                     ModeStatusResponse(
                         battery_id=battery.id,
                         battery_name=battery.name,
-                        mode=mode_info.get("mode", "Unknown"),
-                        ongrid_power=mode_info.get("ongrid_power"),
-                        offgrid_power=mode_info.get("offgrid_power"),
-                        bat_soc=mode_info.get("bat_soc"),
+                        mode=mode_info.get("mode", "Unknown") if mode_info else "Unknown",
+                        ongrid_power=mode_info.get("ongrid_power") if mode_info else None,
+                        offgrid_power=mode_info.get("offgrid_power") if mode_info else None,
+                        bat_soc=mode_info.get("bat_soc") if mode_info else None,
+                    )
+                )
+            else:
+                # Battery not in cache, add with Unknown mode
+                modes.append(
+                    ModeStatusResponse(
+                        battery_id=battery.id,
+                        battery_name=battery.name,
+                        mode="Unknown",
+                        ongrid_power=None,
+                        offgrid_power=None,
+                        bat_soc=None,
                     )
                 )
 
