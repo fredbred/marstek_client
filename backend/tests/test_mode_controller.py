@@ -88,11 +88,21 @@ async def test_switch_to_manual_night_success(
     mock_battery_manager: MagicMock,
     mock_notification_service: MagicMock,
 ) -> None:
-    """Test switching to manual night mode successfully."""
+    """Test switching to manual night mode successfully (no red day)."""
+    from unittest.mock import patch
+
     # Mock successful mode change
     mock_battery_manager.set_mode_all.return_value = {1: True, 2: True, 3: True}
 
-    results = await mode_controller.switch_to_manual_night(mock_db)
+    # Mock TempoService to return no red day tomorrow
+    with patch("app.core.tempo_service.TempoService") as mock_tempo_cls:
+        mock_tempo = MagicMock()
+        mock_tempo.__aenter__ = AsyncMock(return_value=mock_tempo)
+        mock_tempo.__aexit__ = AsyncMock(return_value=None)
+        mock_tempo.should_activate_precharge = AsyncMock(return_value=False)
+        mock_tempo_cls.return_value = mock_tempo
+
+        results = await mode_controller.switch_to_manual_night(mock_db)
 
     assert results == {1: True, 2: True, 3: True}
     mock_battery_manager.set_mode_all.assert_called_once()
@@ -113,16 +123,50 @@ async def test_activate_tempo_precharge(
     mock_battery_manager: MagicMock,
     mock_notification_service: MagicMock,
 ) -> None:
-    """Test activating Tempo precharge."""
-    # Mock successful mode change
-    mock_battery_manager.set_mode_all.return_value = {1: True, 2: True, 3: True}
+    """Test activating Tempo precharge (uses set_mode_passive on client)."""
+    from app.models import Battery
+
+    # Create mock batteries
+    mock_batteries = [
+        Battery(
+            id=1,
+            name="Batt1",
+            ip_address="192.168.1.100",
+            udp_port=30000,
+            is_active=True,
+        ),
+        Battery(
+            id=2,
+            name="Batt2",
+            ip_address="192.168.1.101",
+            udp_port=30000,
+            is_active=True,
+        ),
+        Battery(
+            id=3,
+            name="Batt3",
+            ip_address="192.168.1.102",
+            udp_port=30000,
+            is_active=True,
+        ),
+    ]
+
+    # Mock database query to return mock batteries
+    result_mock = MagicMock()
+    result_mock.scalars.return_value.all.return_value = mock_batteries
+    mock_db.execute = AsyncMock(return_value=result_mock)
+
+    # Mock set_mode_passive on the client
+    mock_battery_manager.client = MagicMock()
+    mock_battery_manager.client.set_mode_passive = AsyncMock(return_value=True)
 
     results = await mode_controller.activate_tempo_precharge(mock_db, target_soc=95)
 
     assert results == {1: True, 2: True, 3: True}
-    mock_battery_manager.set_mode_all.assert_called_once()
-    # switch_to_auto_mode sends a notification, then activate_tempo_precharge sends another
-    assert mock_notification_service.send_notification.call_count == 2
+    # set_mode_passive should be called once per battery
+    assert mock_battery_manager.client.set_mode_passive.call_count == 3
+    # One notification for precharge activation
+    mock_notification_service.send_notification.assert_called_once()
 
 
 @pytest.mark.asyncio

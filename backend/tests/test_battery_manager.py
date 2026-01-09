@@ -8,7 +8,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.battery_manager import BatteryManager
 from app.core.marstek_client import MarstekUDPClient
 from app.models import Battery
-from app.models.marstek_api import BatteryStatus, ESStatus, ModeInfo
 
 
 @pytest.fixture
@@ -151,24 +150,53 @@ async def test_get_all_status_success(
     sample_batteries: list[Battery],
     mock_client: MagicMock,
 ) -> None:
-    """Test getting status of all batteries successfully."""
+    """Test getting status of all batteries successfully (from cache)."""
     # Mock database query
     result_mock = MagicMock()
     result_mock.scalars.return_value.all.return_value = sample_batteries
     mock_db.execute.return_value = result_mock
 
-    # Mock client responses
-    bat_status = BatteryStatus(
-        id=0, soc=98, charg_flag=True, dischrg_flag=True, bat_temp=25.0
-    )
-    es_status = ESStatus(
-        id=0, bat_soc=98, bat_power=100.0, pv_power=580.0, ongrid_power=50.0
-    )
-    mode_info = ModeInfo(id=0, mode="Auto", bat_soc=98)
+    # Pre-populate the cache (simulating scheduler having run)
+    import app.core.battery_manager as bm_module
 
-    mock_client.get_battery_status.return_value = bat_status
-    mock_client.get_es_status.return_value = es_status
-    mock_client.get_current_mode.return_value = mode_info
+    bm_module._battery_status_cache = {
+        1: {
+            "bat_status": {
+                "soc": 98,
+                "charg_flag": True,
+                "dischrg_flag": True,
+                "bat_temp": 25.0,
+            },
+            "es_status": {
+                "bat_soc": 98,
+                "bat_power": 100.0,
+                "pv_power": 580.0,
+                "ongrid_power": 50.0,
+            },
+            "mode_info": {"mode": "Auto", "bat_soc": 98},
+        },
+        2: {
+            "bat_status": {
+                "soc": 95,
+                "charg_flag": True,
+                "dischrg_flag": True,
+                "bat_temp": 24.0,
+            },
+            "es_status": {
+                "bat_soc": 95,
+                "bat_power": 50.0,
+                "pv_power": 400.0,
+                "ongrid_power": 30.0,
+            },
+            "mode_info": {"mode": "Auto", "bat_soc": 95},
+        },
+    }
+    from datetime import datetime
+
+    bm_module._battery_cache_timestamps = {
+        1: datetime.utcnow(),
+        2: datetime.utcnow(),
+    }
 
     status_dict = await battery_manager.get_all_status(mock_db)
 
@@ -179,6 +207,10 @@ async def test_get_all_status_success(
     assert "es_status" in status_dict[1]
     assert "mode_info" in status_dict[1]
 
+    # Cleanup
+    bm_module._battery_status_cache = {}
+    bm_module._battery_cache_timestamps = {}
+
 
 @pytest.mark.asyncio
 async def test_get_all_status_partial_failure(
@@ -187,23 +219,34 @@ async def test_get_all_status_partial_failure(
     sample_batteries: list[Battery],
     mock_client: MagicMock,
 ) -> None:
-    """Test getting status with partial failures."""
+    """Test getting status with partial failures (cache with error)."""
     # Mock database query
     result_mock = MagicMock()
     result_mock.scalars.return_value.all.return_value = sample_batteries
     mock_db.execute.return_value = result_mock
 
-    # First battery succeeds, second fails
-    bat_status = BatteryStatus(id=0, soc=98, charg_flag=True, dischrg_flag=True)
-    es_status = ESStatus(id=0, bat_soc=98)
-    mode_info = ModeInfo(id=0, mode="Auto")
+    # Pre-populate the cache with first battery success, second with error
+    from datetime import datetime
 
-    mock_client.get_battery_status.side_effect = [
-        bat_status,
-        Exception("Network error"),
-    ]
-    mock_client.get_es_status.side_effect = [es_status, Exception("Network error")]
-    mock_client.get_current_mode.side_effect = [mode_info, Exception("Network error")]
+    import app.core.battery_manager as bm_module
+
+    bm_module._battery_status_cache = {
+        1: {
+            "bat_status": {"soc": 98, "charg_flag": True, "dischrg_flag": True},
+            "es_status": {"bat_soc": 98},
+            "mode_info": {"mode": "Auto"},
+        },
+        2: {
+            "bat_status": None,
+            "es_status": None,
+            "mode_info": None,
+            "error": "Network error",
+        },
+    }
+    bm_module._battery_cache_timestamps = {
+        1: datetime.utcnow(),
+        2: datetime.utcnow(),
+    }
 
     status_dict = await battery_manager.get_all_status(mock_db)
 
@@ -212,6 +255,10 @@ async def test_get_all_status_partial_failure(
     assert status_dict[2]["bat_status"] is None
     assert status_dict[2]["es_status"] is None
     assert status_dict[2]["mode_info"] is None
+
+    # Cleanup
+    bm_module._battery_status_cache = {}
+    bm_module._battery_cache_timestamps = {}
 
 
 @pytest.mark.asyncio
@@ -283,18 +330,47 @@ async def test_log_status_to_db(
     mock_client: MagicMock,
 ) -> None:
     """Test logging battery status to database."""
-    # Mock get_all_status
-    bat_status = BatteryStatus(
-        id=0, soc=98, charg_flag=True, dischrg_flag=True, bat_temp=25.0
-    )
-    es_status = ESStatus(
-        id=0, bat_soc=98, bat_power=100.0, pv_power=580.0, ongrid_power=50.0
-    )
-    mode_info = ModeInfo(id=0, mode="Auto", bat_soc=98)
+    # Pre-populate the cache (simulating scheduler having run)
+    from datetime import datetime
 
-    mock_client.get_battery_status.return_value = bat_status
-    mock_client.get_es_status.return_value = es_status
-    mock_client.get_current_mode.return_value = mode_info
+    import app.core.battery_manager as bm_module
+
+    bm_module._battery_status_cache = {
+        1: {
+            "bat_status": {
+                "soc": 98,
+                "charg_flag": True,
+                "dischrg_flag": True,
+                "bat_temp": 25.0,
+            },
+            "es_status": {
+                "bat_soc": 98,
+                "bat_power": 100.0,
+                "pv_power": 580.0,
+                "ongrid_power": 50.0,
+            },
+            "mode_info": {"mode": "Auto", "bat_soc": 98},
+        },
+        2: {
+            "bat_status": {
+                "soc": 95,
+                "charg_flag": True,
+                "dischrg_flag": True,
+                "bat_temp": 24.0,
+            },
+            "es_status": {
+                "bat_soc": 95,
+                "bat_power": 50.0,
+                "pv_power": 400.0,
+                "ongrid_power": 30.0,
+            },
+            "mode_info": {"mode": "Auto", "bat_soc": 95},
+        },
+    }
+    bm_module._battery_cache_timestamps = {
+        1: datetime.utcnow(),
+        2: datetime.utcnow(),
+    }
 
     # Mock database queries
     result_mock = MagicMock()
@@ -306,3 +382,7 @@ async def test_log_status_to_db(
     # Verify logs were created
     assert mock_db.add.call_count == 2  # One log per battery
     mock_db.commit.assert_called_once()
+
+    # Cleanup
+    bm_module._battery_status_cache = {}
+    bm_module._battery_cache_timestamps = {}

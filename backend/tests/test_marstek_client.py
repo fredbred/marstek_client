@@ -2,7 +2,7 @@
 
 import json
 import socket
-from unittest.mock import MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
@@ -68,7 +68,7 @@ async def test_send_command_timeout_retry(
     client: MarstekUDPClient, mock_socket: MagicMock
 ) -> None:
     """Test command retry on timeout."""
-    mock_socket.recvfrom.side_effect = socket.timeout("Timeout")
+    mock_socket.recvfrom.side_effect = TimeoutError("Timeout")
 
     with patch.object(client, "_create_socket", return_value=mock_socket):
         with pytest.raises(TimeoutError):
@@ -145,7 +145,7 @@ async def test_broadcast_discover(
     mock_socket.recvfrom.side_effect = [
         (response1, ("192.168.1.100", 30000)),
         (response2, ("192.168.1.101", 30000)),
-        socket.timeout(),  # End discovery
+        TimeoutError(),  # End discovery
     ]
 
     with patch.object(client, "_create_socket", return_value=mock_socket):
@@ -353,16 +353,17 @@ async def test_set_mode_auto(client: MarstekUDPClient, mock_socket: MagicMock) -
     mock_socket.recvfrom.return_value = (response, ("192.168.1.100", 30000))
 
     with patch.object(client, "_create_socket", return_value=mock_socket):
-        success = await client.set_mode_auto("192.168.1.100", 30000)
+        with patch.object(client, "_wake_up_device", new_callable=AsyncMock):
+            success = await client.set_mode_auto("192.168.1.100", 30000)
 
-        assert success is True
+            assert success is True
 
-        # Verify command sent
-        call_args = mock_socket.sendto.call_args
-        sent_data = json.loads(call_args[0][0].decode("utf-8"))
-        assert sent_data["method"] == "ES.SetMode"
-        assert sent_data["params"]["config"]["mode"] == "Auto"
-        assert sent_data["params"]["config"]["auto_cfg"]["enable"] == 1
+            # Verify command sent
+            call_args = mock_socket.sendto.call_args
+            sent_data = json.loads(call_args[0][0].decode("utf-8"))
+            assert sent_data["method"] == "ES.SetMode"
+            assert sent_data["params"]["config"]["mode"] == "Auto"
+            assert sent_data["params"]["config"]["auto_cfg"]["enable"] == 1
 
 
 @pytest.mark.asyncio
@@ -393,17 +394,20 @@ async def test_set_mode_manual(
     )
 
     with patch.object(client, "_create_socket", return_value=mock_socket):
-        success = await client.set_mode_manual("192.168.1.100", 30000, manual_config)
+        with patch.object(client, "_wake_up_device", new_callable=AsyncMock):
+            success = await client.set_mode_manual(
+                "192.168.1.100", 30000, manual_config
+            )
 
-        assert success is True
+            assert success is True
 
-        # Verify command sent
-        call_args = mock_socket.sendto.call_args
-        sent_data = json.loads(call_args[0][0].decode("utf-8"))
-        assert sent_data["method"] == "ES.SetMode"
-        assert sent_data["params"]["config"]["mode"] == "Manual"
-        assert sent_data["params"]["config"]["manual_cfg"]["time_num"] == 1
-        assert sent_data["params"]["config"]["manual_cfg"]["start_time"] == "08:30"
+            # Verify command sent
+            call_args = mock_socket.sendto.call_args
+            sent_data = json.loads(call_args[0][0].decode("utf-8"))
+            assert sent_data["method"] == "ES.SetMode"
+            assert sent_data["params"]["config"]["mode"] == "Manual"
+            assert sent_data["params"]["config"]["manual_cfg"]["time_num"] == 1
+            assert sent_data["params"]["config"]["manual_cfg"]["start_time"] == "08:30"
 
 
 @pytest.mark.asyncio
@@ -452,8 +456,8 @@ async def test_send_command_json_decode_error(
 
     mock_socket.recvfrom.side_effect = [
         (invalid_json, ("192.168.1.100", 30000)),
-        socket.timeout(),  # Retry fails
-        socket.timeout(),  # Final retry fails
+        TimeoutError(),  # Retry fails
+        TimeoutError(),  # Final retry fails
     ]
 
     with patch.object(client, "_create_socket", return_value=mock_socket):
