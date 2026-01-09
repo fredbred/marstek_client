@@ -18,6 +18,10 @@ _battery_status_cache: dict[int, dict] = {}
 _battery_cache_timestamps: dict[int, datetime] = {}
 CACHE_TTL_SECONDS = 300  # 5 minutes de cache
 
+# Historique de connectivité pour détecter les réinitialisations API
+_battery_connectivity_history: dict[int, list[dict]] = {}
+MAX_CONNECTIVITY_HISTORY = 100  # Garder les 100 derniers états
+
 
 class BatteryManager:
     """Gère les 3 batteries Marstek en parallèle.
@@ -152,6 +156,118 @@ class BatteryManager:
 
         return status_dict
 
+    def _track_connectivity(
+        self,
+        battery_id: int,
+        battery_name: str,
+        ip: str,
+        port: int,
+        success: bool,
+        error_type: str | None = None,
+        error_msg: str | None = None,
+    ) -> None:
+        """Enregistre l'historique de connectivité pour détecter les réinitialisations API.
+
+        Args:
+            battery_id: ID de la batterie
+            battery_name: Nom de la batterie
+            ip: Adresse IP
+            port: Port UDP
+            success: True si la communication a réussi
+            error_type: Type d'erreur (timeout, connection_refused, etc.)
+            error_msg: Message d'erreur détaillé
+        """
+        global _battery_connectivity_history
+
+        if battery_id not in _battery_connectivity_history:
+            _battery_connectivity_history[battery_id] = []
+
+        history = _battery_connectivity_history[battery_id]
+
+        # Récupérer l'état précédent
+        was_connected = False
+        consecutive_failures = 0
+        if history:
+            was_connected = history[-1].get("success", False)
+            # Compter les échecs consécutifs
+            for entry in reversed(history):
+                if not entry.get("success", False):
+                    consecutive_failures += 1
+                else:
+                    break
+
+        # Enregistrer le nouvel état
+        entry = {
+            "timestamp": datetime.utcnow().isoformat(),
+            "success": success,
+            "ip": ip,
+            "port": port,
+            "error_type": error_type,
+            "error_msg": error_msg,
+        }
+        history.append(entry)
+
+        # Limiter la taille de l'historique
+        if len(history) > MAX_CONNECTIVITY_HISTORY:
+            history.pop(0)
+
+        # DÉTECTION DE PERTE DE CONNEXION (probable reset API)
+        if was_connected and not success:
+            logger.warning(
+                "BATTERY_CONNECTION_LOST",
+                battery_id=battery_id,
+                battery_name=battery_name,
+                ip=ip,
+                port=port,
+                error_type=error_type,
+                error_msg=error_msg,
+                message="⚠️ La batterie ne répond plus - POSSIBLE RESET API/PORT",
+                action_required="Vérifier dans l'app Marstek si l'API est toujours activée",
+            )
+
+        # DÉTECTION DE RECONNEXION APRÈS PERTE
+        if not was_connected and success and consecutive_failures > 0:
+            logger.info(
+                "BATTERY_CONNECTION_RESTORED",
+                battery_id=battery_id,
+                battery_name=battery_name,
+                ip=ip,
+                port=port,
+                previous_failures=consecutive_failures,
+                message="✅ La batterie répond à nouveau",
+            )
+
+        # ALERTE APRÈS PLUSIEURS ÉCHECS CONSÉCUTIFS
+        if not success:
+            new_consecutive = consecutive_failures + 1
+            if new_consecutive == 3:
+                logger.error(
+                    "BATTERY_MULTIPLE_FAILURES",
+                    battery_id=battery_id,
+                    battery_name=battery_name,
+                    ip=ip,
+                    port=port,
+                    consecutive_failures=new_consecutive,
+                    message="🚨 3 échecs consécutifs - Vérifier l'état de la batterie",
+                    possible_causes=[
+                        "API désactivée sur la batterie",
+                        "Port UDP changé",
+                        "Batterie hors ligne",
+                        "Problème réseau",
+                        "Firmware v153 bug connu",
+                    ],
+                )
+            elif new_consecutive == 10:
+                logger.critical(
+                    "BATTERY_OFFLINE",
+                    battery_id=battery_id,
+                    battery_name=battery_name,
+                    ip=ip,
+                    port=port,
+                    consecutive_failures=new_consecutive,
+                    message="🔴 Batterie considérée HORS LIGNE après 10 échecs",
+                )
+
     async def refresh_single_battery(self, battery: Battery) -> dict[str, Any]:
         """Rafraîchit le cache pour une seule batterie (appelé par scheduler).
 
@@ -165,6 +281,29 @@ class BatteryManager:
 
         try:
             result = await self._get_single_battery_status(battery)
+
+            # Tracker la connectivité
+            success = result.get("bat_status") is not None
+            error_type = None
+            error_msg = None
+            if not success:
+                error_msg = result.get("error", "Unknown error")
+                if "timeout" in error_msg.lower():
+                    error_type = "timeout"
+                elif "connection" in error_msg.lower():
+                    error_type = "connection_error"
+                else:
+                    error_type = "unknown"
+
+            self._track_connectivity(
+                battery_id=battery.id,
+                battery_name=battery.name,
+                ip=battery.ip_address,
+                port=battery.udp_port,
+                success=success,
+                error_type=error_type,
+                error_msg=error_msg,
+            )
 
             # Ne mettre à jour le cache que si on a des données valides (bat_status non null)
             if result.get("bat_status") is not None:
@@ -197,6 +336,16 @@ class BatteryManager:
 
             return result
         except Exception as e:
+            # Tracker l'exception comme échec de connectivité
+            self._track_connectivity(
+                battery_id=battery.id,
+                battery_name=battery.name,
+                ip=battery.ip_address,
+                port=battery.udp_port,
+                success=False,
+                error_type="exception",
+                error_msg=str(e),
+            )
             logger.error("battery_refresh_failed", battery_id=battery.id, error=str(e))
             return {"error": str(e)}
 

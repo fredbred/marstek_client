@@ -233,14 +233,33 @@ class MarstekUDPClient:
                     backoff_time = self.retry_backoff * (2 ** (attempt - 1))
                     await asyncio.sleep(backoff_time)
 
-        # All retries failed
+        # All retries failed - log avec détails pour diagnostic
+        error_type = "unknown"
+        if isinstance(last_error, socket.timeout):
+            error_type = "timeout"
+        elif isinstance(last_error, OSError):
+            error_type = "os_error"
+        elif isinstance(last_error, ConnectionRefusedError):
+            error_type = "connection_refused"
+
         logger.error(
-            "marstek_command_failed",
+            "MARSTEK_COMMAND_FAILED_ALL_RETRIES",
             ip=ip,
             port=port,
             method=command_dict.get("method"),
             max_retries=self.max_retries,
+            error_type=error_type,
             error=str(last_error) if last_error else "Unknown error",
+            diagnostic_info={
+                "possible_causes": [
+                    "API locale désactivée sur la batterie",
+                    "Port UDP incorrect (vérifier dans app Marstek)",
+                    "Batterie hors tension ou redémarrée",
+                    "Firmware v153 bug de communication",
+                    "Problème réseau / IP changée",
+                ],
+                "action_required": "Vérifier la configuration API dans l'app Marstek",
+            },
         )
 
         if isinstance(last_error, socket.timeout):

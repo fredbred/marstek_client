@@ -350,3 +350,93 @@ async def get_power_history(
     except Exception as e:
         logger.error("power_history_error", error=str(e))
         return []
+
+
+@router.get("/connectivity/history")
+@limiter.limit("30/minute")
+async def get_connectivity_history(
+    request: Request,
+    battery_id: int | None = Query(default=None, description="Filter by battery ID"),
+) -> dict:
+    """Récupère l'historique de connectivité des batteries.
+
+    Utile pour diagnostiquer les réinitialisations API et les pertes de connexion.
+
+    Args:
+        battery_id: ID de la batterie (optionnel, toutes si non spécifié)
+
+    Returns:
+        Historique de connectivité par batterie
+    """
+    from app.core.battery_manager import _battery_connectivity_history
+
+    try:
+        if battery_id is not None:
+            # Retourner l'historique d'une seule batterie
+            history = _battery_connectivity_history.get(battery_id, [])
+            return {
+                "battery_id": battery_id,
+                "total_entries": len(history),
+                "history": history[-20:],  # 20 dernières entrées
+                "summary": _compute_connectivity_summary(history),
+            }
+        else:
+            # Retourner un résumé pour toutes les batteries
+            result = {}
+            for bid, history in _battery_connectivity_history.items():
+                result[bid] = {
+                    "total_entries": len(history),
+                    "recent_entries": history[-5:],  # 5 dernières entrées
+                    "summary": _compute_connectivity_summary(history),
+                }
+            return {"batteries": result}
+
+    except Exception as e:
+        logger.error("connectivity_history_error", error=str(e))
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error retrieving connectivity history: {str(e)}",
+        )
+
+
+def _compute_connectivity_summary(history: list[dict]) -> dict:
+    """Calcule un résumé de l'historique de connectivité."""
+    if not history:
+        return {"status": "no_data", "success_rate": 0}
+
+    total = len(history)
+    successes = sum(1 for h in history if h.get("success", False))
+    failures = total - successes
+
+    # Compter les échecs consécutifs récents
+    recent_consecutive_failures = 0
+    for entry in reversed(history):
+        if not entry.get("success", False):
+            recent_consecutive_failures += 1
+        else:
+            break
+
+    # Déterminer le statut
+    if recent_consecutive_failures >= 10:
+        status_str = "offline"
+    elif recent_consecutive_failures >= 3:
+        status_str = "degraded"
+    elif history[-1].get("success", False):
+        status_str = "online"
+    else:
+        status_str = "warning"
+
+    return {
+        "status": status_str,
+        "success_rate": round(successes / total * 100, 1) if total > 0 else 0,
+        "total_attempts": total,
+        "successes": successes,
+        "failures": failures,
+        "recent_consecutive_failures": recent_consecutive_failures,
+        "last_success": next(
+            (h["timestamp"] for h in reversed(history) if h.get("success")), None
+        ),
+        "last_failure": next(
+            (h["timestamp"] for h in reversed(history) if not h.get("success")), None
+        ),
+    }

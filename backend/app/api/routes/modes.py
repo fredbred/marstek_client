@@ -59,9 +59,15 @@ async def get_current_modes(
                     ModeStatusResponse(
                         battery_id=battery.id,
                         battery_name=battery.name,
-                        mode=mode_info.get("mode", "Unknown") if mode_info else "Unknown",
-                        ongrid_power=mode_info.get("ongrid_power") if mode_info else None,
-                        offgrid_power=mode_info.get("offgrid_power") if mode_info else None,
+                        mode=(
+                            mode_info.get("mode", "Unknown") if mode_info else "Unknown"
+                        ),
+                        ongrid_power=(
+                            mode_info.get("ongrid_power") if mode_info else None
+                        ),
+                        offgrid_power=(
+                            mode_info.get("offgrid_power") if mode_info else None
+                        ),
                         bat_soc=mode_info.get("bat_soc") if mode_info else None,
                     )
                 )
