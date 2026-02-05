@@ -143,46 +143,50 @@ class ModeController:
 
         if is_red_tomorrow:
             logger.info(
-                "switching_to_manual_night_CHARGE_PASSIVE",
+                "switching_to_manual_night_CHARGE",
                 max_retries=max_retries,
                 reason="jour_rouge_demain",
                 power=precharge_power,
             )
 
-            # Utiliser mode PASSIVE pour la charge forcée (8h = 28800s)
-            from sqlalchemy import select as sql_select
+            # Utiliser mode MANUAL avec puissance négative pour la charge forcée
+            manual_config = ManualConfig(
+                time_num=0,
+                start_time="22:00",
+                end_time="06:00",
+                week_set=127,  # Tous les jours
+                power=precharge_power,  # Valeur négative = CHARGE
+                enable=1,
+            )
 
-            from app.models import Battery
+            mode_config = {
+                "mode": "manual",
+                "config": manual_config.model_dump(),
+            }
 
-            battery_stmt = sql_select(Battery).where(Battery.is_active)
-            battery_result = await db.execute(battery_stmt)
-            batteries = battery_result.scalars().all()
+            results = await self.battery_manager.set_mode_all(db, mode_config)
 
-            results: dict[int, bool] = {}
-            cd_time = 28800  # 8 heures
+            # Retry pour les batteries en échec
+            for retry in range(1, max_retries):
+                failed = [bid for bid, success in results.items() if not success]
+                if not failed:
+                    break
+                logger.info(
+                    "retrying_manual_charge", retry=retry, failed_batteries=failed
+                )
+                await asyncio.sleep(60.0)
+                retry_results = await self.battery_manager.set_mode_all(db, mode_config)
+                for bid, success in retry_results.items():
+                    if success:
+                        results[bid] = True
 
-            for battery in batteries:
-                try:
-                    success = await self.battery_manager.client.set_mode_passive(
-                        battery.ip_address,
-                        battery.udp_port,
-                        power=precharge_power,
-                        cd_time=cd_time,
-                    )
-                    results[battery.id] = success
-                    logger.info(
-                        "passive_charge_battery_result",
-                        battery_id=battery.id,
-                        success=success,
-                        power=precharge_power,
-                    )
-                except Exception as e:
-                    logger.error(
-                        "passive_charge_battery_failed",
-                        battery_id=battery.id,
-                        error=str(e),
-                    )
-                    results[battery.id] = False
+            success_count = sum(1 for success in results.values() if success)
+            logger.info(
+                "manual_charge_result",
+                success_count=success_count,
+                total_count=len(results),
+                power=precharge_power,
+            )
 
             return results
 
@@ -258,7 +262,7 @@ class ModeController:
         """Active la charge forcée la veille d'un jour rouge Tempo.
 
         Configure les batteries pour charger depuis le réseau jusqu'à target_soc%
-        avant le jour rouge.
+        avant le jour rouge en utilisant le mode MANUAL avec puissance négative.
 
         Args:
             db: Database session
@@ -268,53 +272,57 @@ class ModeController:
         Returns:
             Dictionnaire {battery_id: success} indiquant le succès pour chaque batterie
         """
+        import asyncio
+
         logger.info(
             "activating_tempo_precharge", target_soc=target_soc, power_limit=power_limit
         )
 
-        # Pour la précharge Tempo, on utilise le mode PASSIVE avec power négatif
-        # pour forcer la charge depuis le réseau (durée 8h = 28800s)
-        from sqlalchemy import select
+        # Utiliser mode MANUAL avec puissance négative pour forcer la charge
+        manual_config = ManualConfig(
+            time_num=0,
+            start_time="22:00",
+            end_time="06:00",
+            week_set=127,  # Tous les jours
+            power=power_limit,  # Valeur négative = CHARGE
+            enable=1,
+        )
 
-        from app.models import Battery
+        mode_config = {
+            "mode": "manual",
+            "config": manual_config.model_dump(),
+        }
 
-        stmt = select(Battery).where(Battery.is_active)
-        result = await db.execute(stmt)
-        batteries = result.scalars().all()
+        results = await self.battery_manager.set_mode_all(db, mode_config)
 
-        results: dict[int, bool] = {}
-        cd_time = 28800  # 8 heures
+        # Retry pour les batteries en échec
+        for retry in range(1, 3):
+            failed = [bid for bid, success in results.items() if not success]
+            if not failed:
+                break
+            logger.info("retrying_tempo_precharge", retry=retry, failed_batteries=failed)
+            await asyncio.sleep(60.0)
+            retry_results = await self.battery_manager.set_mode_all(db, mode_config)
+            for bid, success in retry_results.items():
+                if success:
+                    results[bid] = True
 
-        for battery in batteries:
-            try:
-                success = await self.battery_manager.client.set_mode_passive(
-                    battery.ip_address,
-                    battery.udp_port,
-                    power=power_limit,  # Valeur négative = CHARGE
-                    cd_time=cd_time,
-                )
-                results[battery.id] = success
-                logger.info(
-                    "tempo_precharge_battery_result",
-                    battery_id=battery.id,
-                    success=success,
-                    power=power_limit,
-                    cd_time=cd_time,
-                )
-            except Exception as e:
-                logger.error(
-                    "tempo_precharge_battery_failed",
-                    battery_id=battery.id,
-                    error=str(e),
-                )
-                results[battery.id] = False
+        success_count = sum(1 for success in results.values() if success)
+        total_count = len(results)
+
+        logger.info(
+            "tempo_precharge_result",
+            success_count=success_count,
+            total_count=total_count,
+            power=power_limit,
+        )
 
         if self.notification_service:
-            sum(1 for success in results.values() if success)
             await self._send_notification(
                 "⚡ Précharge Tempo activée",
-                f"Les batteries sont en mode AUTO pour précharger à {target_soc}% "
-                f"(puissance max: {power_limit}W) avant le jour rouge Tempo.",
+                f"Les batteries ({success_count}/{total_count}) sont en mode MANUAL "
+                f"pour précharger à {target_soc}% (puissance: {power_limit}W) "
+                f"avant le jour rouge Tempo.",
                 level="info",
             )
 

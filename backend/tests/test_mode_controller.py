@@ -123,48 +123,24 @@ async def test_activate_tempo_precharge(
     mock_battery_manager: MagicMock,
     mock_notification_service: MagicMock,
 ) -> None:
-    """Test activating Tempo precharge (uses set_mode_passive on client)."""
-    from app.models import Battery
+    """Test activating Tempo precharge (uses Manual mode with negative power)."""
+    # Mock successful mode change for all batteries
+    mock_battery_manager.set_mode_all.return_value = {1: True, 2: True, 3: True}
 
-    # Create mock batteries
-    mock_batteries = [
-        Battery(
-            id=1,
-            name="Batt1",
-            ip_address="192.168.1.100",
-            udp_port=30000,
-            is_active=True,
-        ),
-        Battery(
-            id=2,
-            name="Batt2",
-            ip_address="192.168.1.101",
-            udp_port=30000,
-            is_active=True,
-        ),
-        Battery(
-            id=3,
-            name="Batt3",
-            ip_address="192.168.1.102",
-            udp_port=30000,
-            is_active=True,
-        ),
-    ]
-
-    # Mock database query to return mock batteries
-    result_mock = MagicMock()
-    result_mock.scalars.return_value.all.return_value = mock_batteries
-    mock_db.execute = AsyncMock(return_value=result_mock)
-
-    # Mock set_mode_passive on the client
-    mock_battery_manager.client = MagicMock()
-    mock_battery_manager.client.set_mode_passive = AsyncMock(return_value=True)
-
-    results = await mode_controller.activate_tempo_precharge(mock_db, target_soc=95)
+    results = await mode_controller.activate_tempo_precharge(
+        mock_db, target_soc=95, power_limit=-1000
+    )
 
     assert results == {1: True, 2: True, 3: True}
-    # set_mode_passive should be called once per battery
-    assert mock_battery_manager.client.set_mode_passive.call_count == 3
+    mock_battery_manager.set_mode_all.assert_called_once()
+
+    # Verify manual config was passed with negative power for charging
+    call_args = mock_battery_manager.set_mode_all.call_args
+    mode_config = call_args[0][1]
+    assert mode_config["mode"] == "manual"
+    assert mode_config["config"]["power"] == -1000  # Negative = charge
+    assert mode_config["config"]["enable"] == 1
+
     # One notification for precharge activation
     mock_notification_service.send_notification.assert_called_once()
 
