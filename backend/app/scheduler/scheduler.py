@@ -12,7 +12,6 @@ from apscheduler.triggers.interval import IntervalTrigger
 from app.config import get_settings
 from app.scheduler.jobs import (
     job_check_tempo_tomorrow,
-    job_health_check,
     job_monitor_batteries,
     job_switch_to_auto,
     job_switch_to_manual_night,
@@ -51,7 +50,6 @@ def init_scheduler() -> AsyncIOScheduler:
     db_url = settings.database.url.replace("+asyncpg", "").replace(
         "postgresql+asyncpg", "postgresql"
     )
-
     # Si l'URL contient encore asyncpg, la remplacer
     if "+asyncpg" in db_url:
         db_url = db_url.replace("+asyncpg", "")
@@ -90,6 +88,16 @@ def init_scheduler() -> AsyncIOScheduler:
 def _register_jobs(scheduler: AsyncIOScheduler) -> None:
     """Enregistre tous les jobs programmés.
 
+    Jobs configurés :
+    - 06:00 : Passage mode AUTO pour la journée
+    - 22:00 : Passage mode MANUAL nuit
+    - 11:30 : Vérification Tempo RTE
+    - Toutes les 5 min : Monitoring batteries (health check + status)
+
+    Rate limiting: Les batteries sont interrogées séquentiellement avec
+    un délai de 20s entre chaque pour respecter les recommandations
+    de l'API Marstek (min 60s entre requêtes par batterie).
+
     Args:
         scheduler: Instance du scheduler
     """
@@ -100,7 +108,7 @@ def _register_jobs(scheduler: AsyncIOScheduler) -> None:
         id="switch_to_auto",
         name="Switch to AUTO mode (6h00)",
         replace_existing=True,
-        max_instances=1,  # Une seule instance à la fois
+        max_instances=1,
     )
 
     # Job: Passage en mode MANUAL nuit à 22h00
@@ -116,35 +124,26 @@ def _register_jobs(scheduler: AsyncIOScheduler) -> None:
     # Job: Vérification Tempo RTE à 11h30
     scheduler.add_job(
         job_check_tempo_tomorrow,
-        trigger=CronTrigger(hour=11, minute=30, timezone=settings.scheduler.timezone),
+        trigger=CronTrigger(hour=12, minute=30, timezone=settings.scheduler.timezone),
         id="check_tempo_tomorrow",
-        name="Check Tempo RTE and activate precharge (11h30)",
+        name="Check Tempo RTE and activate precharge (12h30)",
         replace_existing=True,
         max_instances=1,
     )
 
-    # Job: Monitoring batteries toutes les 10 minutes (éviter rate limiting)
-    # Note: Batteries Marstek instables si interrogées trop fréquemment
+    # Job: Monitoring batteries toutes les 5 minutes
+    # Combine health check + status logging + alertes
+    # Respecte rate limits avec délai 20s entre batteries
     scheduler.add_job(
         job_monitor_batteries,
-        trigger=IntervalTrigger(minutes=10, timezone=settings.scheduler.timezone),
+        trigger=IntervalTrigger(minutes=5, timezone=settings.scheduler.timezone),
         id="monitor_batteries",
-        name="Monitor batteries and log status (every 10min)",
+        name="Monitor batteries (health + status, every 5min)",
         replace_existing=True,
         max_instances=1,
     )
 
-    # Job: Health check toutes les 30 minutes (éviter rate limiting batteries)
-    scheduler.add_job(
-        job_health_check,
-        trigger=IntervalTrigger(minutes=30, timezone=settings.scheduler.timezone),
-        id="health_check",
-        name="Battery health check (every 30min)",
-        replace_existing=True,
-        max_instances=1,
-    )
-
-    logger.info("scheduler_jobs_registered", job_count=5)
+    logger.info("scheduler_jobs_registered", job_count=4)
 
 
 def _setup_shutdown_handlers() -> None:
@@ -163,10 +162,8 @@ def _setup_shutdown_handlers() -> None:
                 else:
                     asyncio.run(shutdown_scheduler())
             except RuntimeError:
-                # Pas de loop en cours, créer une nouvelle
                 asyncio.run(shutdown_scheduler())
 
-    # Enregistrer les handlers de signaux
     signal.signal(signal.SIGTERM, signal_handler)
     signal.signal(signal.SIGINT, signal_handler)
 
@@ -186,7 +183,6 @@ async def shutdown_scheduler() -> None:
         logger.info("scheduler_shutdown_complete")
     except Exception as e:
         logger.error("scheduler_shutdown_error", error=str(e))
-
     finally:
         _scheduler = None
 

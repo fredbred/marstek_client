@@ -2,7 +2,6 @@
 
 from app.scheduler.jobs import (
     job_check_tempo_tomorrow,
-    job_health_check,
     job_monitor_batteries,
     job_switch_to_auto,
     job_switch_to_manual_night,
@@ -25,5 +24,4 @@ __all__ = [
     "job_switch_to_manual_night",
     "job_check_tempo_tomorrow",
     "job_monitor_batteries",
-    "job_health_check",
 ]

@@ -57,16 +57,14 @@ async def startup_event() -> None:
         logger.info("database_initialized")
     except Exception as e:
         logger.error("database_init_failed", error=str(e))
-        # Ne pas bloquer le démarrage si la DB existe déjà
 
     # Initialiser et démarrer le scheduler
     try:
         init_scheduler()
-        start_scheduler()
+        start_scheduler()  # Fonction synchrone, pas de await
         logger.info("scheduler_started")
     except Exception as e:
         logger.error("scheduler_start_failed", error=str(e), exc_info=True)
-        # Le scheduler est optionnel, on continue sans
 
 
 @app.on_event("shutdown")

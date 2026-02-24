@@ -4,11 +4,21 @@ import asyncio
 from datetime import datetime
 
 import structlog
+from sqlalchemy import select, update
 
 from app.core import BatteryManager, ModeController
+from app.core.marstek_client import MarstekUDPClient
 from app.database import async_session_maker
+from app.models import Battery
 
 logger = structlog.get_logger(__name__)
+
+# Rate limiting constants (based on Marstek API recommendations)
+# See: https://github.com/jaapp/ha-marstek-local-api
+MIN_POLLING_INTERVAL_SECONDS = 60  # Minimum 60s between polls per battery
+DELAY_BETWEEN_BATTERIES_SECONDS = 20  # Delay between querying each battery
+SOC_LOW_THRESHOLD = 20  # Percentage
+TEMPERATURE_HIGH_THRESHOLD = 45  # Celsius
 
 
 async def job_switch_to_auto() -> None:
@@ -17,15 +27,7 @@ async def job_switch_to_auto() -> None:
     Passe toutes les batteries actives en mode AUTO pour la période
     de la journée (6h-22h).
     """
-    from datetime import datetime
-
-    start_time = datetime.now()
-    logger.info(
-        "scheduled_job_started",
-        job="switch_to_auto",
-        start_time=start_time.isoformat(),
-        description="Passage en mode AUTO pour consommation journée",
-    )
+    logger.info("scheduled_job_started", job="switch_to_auto")
 
     async with async_session_maker() as db:
         try:
@@ -36,31 +38,13 @@ async def job_switch_to_auto() -> None:
 
             success_count = sum(1 for success in results.values() if success)
             total_count = len(results)
-            failed_batteries = [bid for bid, success in results.items() if not success]
-
-            end_time = datetime.now()
-            duration = (end_time - start_time).total_seconds()
 
             logger.info(
                 "scheduled_job_completed",
                 job="switch_to_auto",
                 success_count=success_count,
                 total_count=total_count,
-                failed_batteries=failed_batteries if failed_batteries else None,
-                duration_seconds=duration,
-                end_time=end_time.isoformat(),
-                results=results,
             )
-
-            # Log individuel par batterie pour traçabilité
-            for battery_id, success in results.items():
-                logger.info(
-                    "battery_mode_change_result",
-                    job="switch_to_auto",
-                    battery_id=battery_id,
-                    success=success,
-                    target_mode="AUTO",
-                )
 
         except Exception as e:
             logger.error(
@@ -78,15 +62,7 @@ async def job_switch_to_manual_night() -> None:
     pour la période de nuit (22h-6h) afin d'éviter la consommation
     pendant les heures creuses.
     """
-    from datetime import datetime
-
-    start_time = datetime.now()
-    logger.info(
-        "scheduled_job_started",
-        job="switch_to_manual_night",
-        start_time=start_time.isoformat(),
-        description="Passage en mode MANUAL 0W pour nuit HC",
-    )
+    logger.info("scheduled_job_started", job="switch_to_manual_night")
 
     async with async_session_maker() as db:
         try:
@@ -97,31 +73,13 @@ async def job_switch_to_manual_night() -> None:
 
             success_count = sum(1 for success in results.values() if success)
             total_count = len(results)
-            failed_batteries = [bid for bid, success in results.items() if not success]
-
-            end_time = datetime.now()
-            duration = (end_time - start_time).total_seconds()
 
             logger.info(
                 "scheduled_job_completed",
                 job="switch_to_manual_night",
                 success_count=success_count,
                 total_count=total_count,
-                failed_batteries=failed_batteries if failed_batteries else None,
-                duration_seconds=duration,
-                end_time=end_time.isoformat(),
-                results=results,
             )
-
-            # Log individuel par batterie
-            for battery_id, success in results.items():
-                logger.info(
-                    "battery_mode_change_result",
-                    job="switch_to_manual_night",
-                    battery_id=battery_id,
-                    success=success,
-                    target_mode="MANUAL_NIGHT",
-                )
 
         except Exception as e:
             logger.error(
@@ -153,19 +111,6 @@ async def job_check_tempo_tomorrow() -> None:
                 logger.info("tempo_disabled", job="check_tempo_tomorrow")
                 return
 
-            # Récupérer la config Tempo depuis la base
-            from sqlalchemy import select
-
-            from app.models import AppConfig
-
-            stmt = select(AppConfig).where(
-                AppConfig.key.in_(["tempo_target_soc_red", "tempo_precharge_power"])
-            )
-            result = await db.execute(stmt)
-            configs = {row.key: row.value for row in result.scalars().all()}
-            target_soc = int(configs.get("tempo_target_soc_red", "95"))
-            precharge_power = int(configs.get("tempo_precharge_power", "2000"))
-
             # Vérifier si précharge nécessaire
             async with TempoService() as tempo_service:
                 should_activate = await tempo_service.should_activate_precharge()
@@ -176,22 +121,17 @@ async def job_check_tempo_tomorrow() -> None:
                         "tempo_red_day_detected",
                         date=tomorrow.isoformat(),
                         action="activating_precharge",
-                        target_soc=target_soc,
                     )
 
                     manager = BatteryManager()
                     controller = ModeController(manager)
 
-                    # Activer la précharge avec le SOC et la puissance configurés
-                    await controller.activate_tempo_precharge(
-                        db, target_soc=target_soc, power_limit=precharge_power
-                    )
+                    # Activer la précharge
+                    await controller.activate_tempo_precharge(db, target_soc=95)
 
                     logger.info(
                         "tempo_precharge_activated",
                         date=tomorrow.isoformat(),
-                        target_soc=target_soc,
-                        precharge_power=precharge_power,
                     )
                 else:
                     logger.debug(
@@ -208,169 +148,115 @@ async def job_check_tempo_tomorrow() -> None:
 
 
 async def job_monitor_batteries() -> None:
-    """Exécuté toutes les 10 minutes - Rafraîchit le cache des batteries.
+    """Exécuté toutes les 5 minutes - Monitoring complet des batteries.
 
-    Récupère le status de chaque batterie avec délai entre chaque
-    pour éviter le rate limiting des VenusE.
+    Combine health check et monitoring en un seul job pour respecter
+    les rate limits de l'API Marstek (min 60s entre requêtes par batterie).
+
+    - Vérifie la connectivité de chaque batterie (1 requête légère)
+    - Met à jour last_seen_at en base
+    - Récupère SOC et température pour alertes
+    - Envoie des alertes si nécessaire (SOC bas, température élevée)
+
+    Rate limiting: Délai de 20s entre chaque batterie.
     """
-    logger.info("scheduled_job_started", job="monitor_batteries")
+    logger.debug("scheduled_job_started", job="monitor_batteries")
 
     async with async_session_maker() as db:
         try:
-            from sqlalchemy import select, update
-
-            from app.models import Battery
-
-            manager = BatteryManager()
-
-            # Récupérer les batteries actives
-            stmt = select(Battery).where(Battery.is_active)
-            result = await db.execute(stmt)
-            batteries = result.scalars().all()
-
-            # Rafraîchir chaque batterie avec délai de 120s
-            for i, battery in enumerate(batteries):
-                logger.info(
-                    "refreshing_battery",
-                    battery_id=battery.id,
-                    index=i + 1,
-                    total=len(batteries),
-                )
-                await manager.refresh_single_battery(battery)
-
-                # Attendre 120s avant la prochaine batterie (sauf la dernière)
-                if i < len(batteries) - 1:
-                    await asyncio.sleep(120.0)
-
-            # Récupérer les status depuis le cache
-            status_dict = await manager.get_all_status(db)
-
-            # Mettre à jour last_seen_at pour les batteries qui répondent (health check)
-            for battery_id, status_data in status_dict.items():
-                if "error" not in status_data:
-                    await db.execute(
-                        update(Battery)
-                        .where(Battery.id == battery_id)
-                        .values(last_seen_at=datetime.utcnow())
-                    )
-
-            await db.commit()
-
-            # Logger en base de données
-            await manager.log_status_to_db(db)
-
-            # Vérifier les alertes
-            for battery_id, status_data in status_dict.items():
-                if "error" in status_data:
-                    logger.warning(
-                        "battery_monitoring_error",
-                        battery_id=battery_id,
-                        error=status_data["error"],
-                    )
-                    continue
-
-                bat_status = status_data.get("bat_status")
-                if not bat_status:
-                    continue
-
-                soc = bat_status.get("soc", 0)
-                bat_temp = bat_status.get("bat_temp")
-
-                # Alerte SOC bas
-                if soc < 20:
-                    logger.warning(
-                        "battery_low_soc",
-                        battery_id=battery_id,
-                        soc=soc,
-                    )
-                    # TODO: Envoyer notification
-
-                # Alerte température élevée
-                if bat_temp and bat_temp > 45:
-                    logger.warning(
-                        "battery_high_temperature",
-                        battery_id=battery_id,
-                        temperature=bat_temp,
-                    )
-                    # TODO: Envoyer notification
-
-            logger.debug("scheduled_job_completed", job="monitor_batteries")
-
-        except Exception as e:
-            logger.error(
-                "scheduled_job_failed",
-                job="monitor_batteries",
-                error=str(e),
-                exc_info=True,
-            )
-            await db.rollback()
-
-
-async def job_health_check() -> None:
-    """Exécuté toutes les 1 minute - Vérifie connectivité batteries.
-
-    Vérifie que toutes les batteries sont accessibles et met à jour
-    le champ last_seen_at en base de données.
-    """
-    logger.debug("scheduled_job_started", job="health_check")
-
-    async with async_session_maker() as db:
-        try:
-            from sqlalchemy import select, update
-
-            from app.models import Battery
-
             # Récupérer toutes les batteries actives
             stmt = select(Battery).where(Battery.is_active)
             result = await db.execute(stmt)
-            batteries = result.scalars().all()
+            batteries = list(result.scalars().all())
 
             if not batteries:
-                logger.debug("no_active_batteries_for_health_check")
+                logger.debug("no_active_batteries_for_monitoring")
                 return
 
-            manager = BatteryManager()
+            client = MarstekUDPClient(timeout=5.0, max_retries=2)
+            online_count = 0
+            offline_count = 0
 
-            # Vérifier chaque batterie avec délai pour éviter rate limiting
+            # Interroger chaque batterie avec un délai pour respecter rate limits
             for i, battery in enumerate(batteries):
+                # Délai entre batteries (sauf pour la première)
                 if i > 0:
-                    await asyncio.sleep(3)  # 3 secondes entre chaque batterie
+                    logger.debug(
+                        "rate_limit_delay",
+                        delay_seconds=DELAY_BETWEEN_BATTERIES_SECONDS,
+                        next_battery=battery.name,
+                    )
+                    await asyncio.sleep(DELAY_BETWEEN_BATTERIES_SECONDS)
 
                 try:
-                    # Tentative de récupération du status (test de connectivité)
-                    await manager.client.get_device_info(
+                    # Récupérer le status batterie (1 seule requête légère)
+                    bat_status = await client.get_battery_status(
                         battery.ip_address, battery.udp_port
                     )
 
-                    # Mettre à jour last_seen_at
+                    # Batterie en ligne - mettre à jour last_seen_at
                     await db.execute(
                         update(Battery)
                         .where(Battery.id == battery.id)
                         .values(last_seen_at=datetime.utcnow())
                     )
+                    online_count += 1
+
+                    # Extraire les infos pour alertes
+                    soc = bat_status.soc if bat_status else 0
+                    bat_temp = bat_status.bat_temp if bat_status else None
+
+                    # Alerte SOC bas
+                    if soc < SOC_LOW_THRESHOLD:
+                        logger.warning(
+                            "battery_low_soc",
+                            battery_id=battery.id,
+                            battery_name=battery.name,
+                            soc=soc,
+                        )
+
+                    # Alerte température élevée
+                    if bat_temp and bat_temp > TEMPERATURE_HIGH_THRESHOLD:
+                        logger.warning(
+                            "battery_high_temperature",
+                            battery_id=battery.id,
+                            battery_name=battery.name,
+                            temperature=bat_temp,
+                        )
 
                     logger.debug(
-                        "battery_health_check_ok",
+                        "battery_monitoring_ok",
                         battery_id=battery.id,
-                        ip=battery.ip_address,
+                        battery_name=battery.name,
+                        soc=soc,
+                        temperature=bat_temp,
                     )
 
                 except Exception as e:
+                    offline_count += 1
                     logger.warning(
-                        "battery_health_check_failed",
+                        "battery_monitoring_failed",
                         battery_id=battery.id,
+                        battery_name=battery.name,
                         ip=battery.ip_address,
                         error=str(e),
                     )
 
             await db.commit()
 
-            logger.debug("scheduled_job_completed", job="health_check")
+            # Log status global du monitoring
+            logger.info(
+                "scheduled_job_completed",
+                job="monitor_batteries",
+                online_count=online_count,
+                offline_count=offline_count,
+                total_count=len(batteries),
+            )
 
         except Exception as e:
             logger.error(
                 "scheduled_job_failed",
-                job="health_check",
+                job="monitor_batteries",
                 error=str(e),
                 exc_info=True,
             )
