@@ -300,7 +300,9 @@ class ModeController:
             failed = [bid for bid, success in results.items() if not success]
             if not failed:
                 break
-            logger.info("retrying_tempo_precharge", retry=retry, failed_batteries=failed)
+            logger.info(
+                "retrying_tempo_precharge", retry=retry, failed_batteries=failed
+            )
             await asyncio.sleep(60.0)
             retry_results = await self.battery_manager.set_mode_all(db, mode_config)
             for bid, success in retry_results.items():

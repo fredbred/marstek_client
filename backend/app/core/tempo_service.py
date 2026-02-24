@@ -1,7 +1,7 @@
 """Service d'intégration API Tempo RTE avec cache Redis."""
 
 from datetime import date, datetime, timedelta
-from enum import Enum
+from enum import StrEnum
 from typing import Any
 
 import httpx
@@ -14,7 +14,7 @@ logger = structlog.get_logger(__name__)
 settings = get_settings()
 
 
-class TempoColor(str, Enum):
+class TempoColor(StrEnum):
     """Couleurs Tempo RTE."""
 
     BLUE = "BLUE"  # Jour bleu (tarif bas)
