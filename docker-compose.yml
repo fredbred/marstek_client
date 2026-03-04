@@ -3,6 +3,7 @@ services:
   postgres:
     image: timescale/timescaledb:latest-pg15
     container_name: marstek-postgres
+    restart: unless-stopped
     environment:
       TZ: Europe/Paris
       POSTGRES_USER: ${POSTGRES_USER:-marstek}
@@ -23,6 +24,7 @@ services:
   redis:
     image: redis:7-alpine
     container_name: marstek-redis
+    restart: unless-stopped
     command: redis-server --appendonly yes
     volumes:
       - redis_data:/data
