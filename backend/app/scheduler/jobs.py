@@ -168,14 +168,12 @@ async def job_check_tempo_tomorrow() -> None:
                     logger.info(
                         "tempo_red_day_detected",
                         date=tomorrow.isoformat(),
-                        action="activating_precharge",
+                        action="notification_only",
                     )
 
-                    manager = BatteryManager()
-                    controller = ModeController(manager)
-                    await controller.activate_tempo_precharge(db, target_soc=95)
-
-                    logger.info("tempo_precharge_activated", date=tomorrow.isoformat())
+                    # Ne pas changer le mode ici ! Les batteries doivent rester
+                    # en AUTO jusqu'à 22h. Le job job_switch_to_manual_night()
+                    # se chargera de passer en MANUAL avec charge à 22h00.
 
                     await notifier.send_warning(
                         "🔴 JOUR ROUGE DEMAIN",
