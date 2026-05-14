@@ -1,22 +1,20 @@
 # Configuration Marstek Automation
 
 # Batteries Marstek
-# Port UDP: configuré individuellement dans l'app Marstek pour chaque device
-# Recommandé: utiliser des ports différents (30001, 30002, 30003) pour éviter les conflits
-# Ports recommandés: entre 49152 et 65535
+# Port UDP: 30000 par défaut Marstek ; 49154 uniquement pour la batterie 2 si configurée ainsi.
 batteries:
   - id: "battery_1"
     name: "Batterie Salon"
     ip: "192.168.1.100"
-    port: 30001  # À configurer dans l'app Marstek pour ce device
+    port: 30000  # Port Marstek par défaut
   - id: "battery_2"
     name: "Batterie Garage"
     ip: "192.168.1.101"
-    port: 30002  # À configurer dans l'app Marstek pour ce device
+    port: 49154  # Port modifié dans l'app Marstek pour cette batterie
   - id: "battery_3"
     name: "Batterie Cave"
     ip: "192.168.1.102"
-    port: 30003  # À configurer dans l'app Marstek pour ce device
+    port: 30000  # Port Marstek par défaut
 
 # Modes de fonctionnement
 modes:

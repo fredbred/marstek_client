@@ -82,19 +82,15 @@ async def test_switch_to_auto_mode_partial_failure(
 
 
 @pytest.mark.asyncio
-async def test_switch_to_manual_night_success(
+async def test_switch_to_manual_night_keeps_auto_when_not_red(
     mode_controller: ModeController,
     mock_db: MagicMock,
     mock_battery_manager: MagicMock,
     mock_notification_service: MagicMock,
 ) -> None:
-    """Test switching to manual night mode successfully (no red day)."""
+    """Jour non rouge demain : conserve Auto sans appel batterie."""
     from unittest.mock import patch
 
-    # Mock successful mode change
-    mock_battery_manager.set_mode_all.return_value = {1: True, 2: True, 3: True}
-
-    # Mock TempoService to return no red day tomorrow
     with patch("app.core.tempo_service.TempoService") as mock_tempo_cls:
         mock_tempo = MagicMock()
         mock_tempo.__aenter__ = AsyncMock(return_value=mock_tempo)
@@ -104,16 +100,12 @@ async def test_switch_to_manual_night_success(
 
         results = await mode_controller.switch_to_manual_night(mock_db)
 
-    assert results == {1: True, 2: True, 3: True}
-    mock_battery_manager.set_mode_all.assert_called_once()
-
-    # Verify manual config was passed
-    call_args = mock_battery_manager.set_mode_all.call_args
-    mode_config = call_args[0][1]
-    assert mode_config["mode"] == "manual"
-    assert mode_config["config"]["power"] == 0  # 0W décharge
-    assert mode_config["config"]["start_time"] == "22:00"
-    assert mode_config["config"]["end_time"] == "06:00"
+    assert results == {}
+    mock_battery_manager.set_mode_all.assert_not_called()
+    mock_notification_service.send_notification.assert_called_once()
+    call_args = mock_notification_service.send_notification.call_args
+    assert "Auto conservé" in call_args[0][0]
+    assert "aucune bascule Manual/UPS" in call_args[0][1]
 
 
 @pytest.mark.asyncio
@@ -123,8 +115,7 @@ async def test_activate_tempo_precharge(
     mock_battery_manager: MagicMock,
     mock_notification_service: MagicMock,
 ) -> None:
-    """Test activating Tempo precharge (uses Manual mode with negative power)."""
-    # Mock successful mode change for all batteries
+    """Test activating Tempo precharge (Passive / UPS-style, negative power)."""
     mock_battery_manager.set_mode_all.return_value = {1: True, 2: True, 3: True}
 
     results = await mode_controller.activate_tempo_precharge(
@@ -134,15 +125,47 @@ async def test_activate_tempo_precharge(
     assert results == {1: True, 2: True, 3: True}
     mock_battery_manager.set_mode_all.assert_called_once()
 
-    # Verify manual config was passed with negative power for charging
     call_args = mock_battery_manager.set_mode_all.call_args
     mode_config = call_args[0][1]
-    assert mode_config["mode"] == "manual"
-    assert mode_config["config"]["power"] == -1000  # Negative = charge
-    assert mode_config["config"]["enable"] == 1
+    assert mode_config["mode"] == "passive"
+    assert mode_config["power"] == -1000
+    assert mode_config["cd_time"] == 8 * 3600
 
-    # One notification for precharge activation
     mock_notification_service.send_notification.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_switch_to_manual_night_red_day_uses_passive(
+    mode_controller: ModeController,
+    mock_db: MagicMock,
+    mock_battery_manager: MagicMock,
+) -> None:
+    """Jour rouge demain : charge en mode Passive (UPS), pas Manual."""
+    from unittest.mock import AsyncMock, MagicMock, patch
+
+    mock_battery_manager.set_mode_all.return_value = {1: True}
+
+    mock_result = MagicMock()
+    mock_row = MagicMock()
+    mock_row.value = "1000"
+    mock_result.scalar_one_or_none.return_value = mock_row
+    mock_db.execute = AsyncMock(return_value=mock_result)
+
+    with patch("app.core.tempo_service.TempoService") as mock_tempo_cls:
+        mock_tempo = MagicMock()
+        mock_tempo.__aenter__ = AsyncMock(return_value=mock_tempo)
+        mock_tempo.__aexit__ = AsyncMock(return_value=None)
+        mock_tempo.should_activate_precharge = AsyncMock(return_value=True)
+        mock_tempo_cls.return_value = mock_tempo
+
+        results = await mode_controller.switch_to_manual_night(mock_db)
+
+    assert results == {1: True}
+    call_args = mock_battery_manager.set_mode_all.call_args
+    mode_config = call_args[0][1]
+    assert mode_config["mode"] == "passive"
+    assert mode_config["power"] == -1000
+    assert mode_config["cd_time"] == 8 * 3600
 
 
 @pytest.mark.asyncio
@@ -168,7 +191,7 @@ async def test_get_recommended_mode_night(
 
     recommended = await mode_controller.get_recommended_mode(mock_db, current_time)
 
-    assert recommended == "manual_night"
+    assert recommended == "auto"
 
 
 @pytest.mark.asyncio
@@ -176,12 +199,12 @@ async def test_get_recommended_mode_early_morning(
     mode_controller: ModeController, mock_db: MagicMock
 ) -> None:
     """Test getting recommended mode in early morning."""
-    # 5:00 (early morning, still night mode)
+    # 5:00 (early morning, Auto is still preserved)
     current_time = datetime(2024, 1, 1, 5, 0, 0)
 
     recommended = await mode_controller.get_recommended_mode(mock_db, current_time)
 
-    assert recommended == "manual_night"
+    assert recommended == "auto"
 
 
 @pytest.mark.asyncio
@@ -192,7 +215,7 @@ async def test_get_recommended_mode_default_time(
     recommended = await mode_controller.get_recommended_mode(mock_db)
 
     # Should return a valid mode
-    assert recommended in ["auto", "manual_night", "tempo_precharge"]
+    assert recommended in ["auto", "tempo_precharge"]
 
 
 @pytest.mark.asyncio

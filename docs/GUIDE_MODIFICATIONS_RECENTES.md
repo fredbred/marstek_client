@@ -34,8 +34,8 @@ Fuseau : **Europe/Paris** (voir `settings.scheduler.timezone`).
 | Heure  | Job | Rôle |
 |--------|-----|------|
 | **06:00** | `switch_to_auto` | Mode **AUTO** sur toutes les batteries actives |
-| **22:00** | `switch_to_manual_night` | Mode **MANUAL** nuit : **0 W** (standby) sauf si **demain = jour rouge Tempo** → charge réseau (puissance négative, voir config) |
-| **12:30** | `check_tempo_tomorrow` | Si **demain = rouge** : lance la **précharge** (`activate_tempo_precharge`) + notification Telegram |
+| **22:00** | `switch_to_manual_night` | Check Tempo nuit : hors rouge, **Auto conservé** ; si **demain = jour rouge Tempo** → précharge Passive / UPS (puissance négative, voir config) |
+| **12:30** | `check_tempo_tomorrow` | Si **demain = rouge** : notification Telegram seule, aucune action batterie |
 | **Toutes les 5 min** | `monitor_batteries` | Une requête légère par batterie, **20 s** d'écart entre batteries (rate limiting API Marstek) |
 
 L'ancien job « health check » toutes les minutes a été **fusionné** dans le monitoring toutes les 5 minutes pour respecter les recommandations de polling (éviter moins de 60 s par batterie en cumulé).
@@ -50,15 +50,16 @@ Variables d'environnement typiques (`.env`) :
 
 Comportement actuel des jobs :
 
-- **06:00** et **22:00** : message de succès ou d'échec partiel selon les batteries
+- **06:00** : message de succès ou d'échec partiel selon les batteries
+- **22:00** : notification Auto conservé hors rouge, ou résultat précharge Passive / UPS si demain est rouge
 - **12:30** jour rouge détecté : alerte **🔴 JOUR ROUGE DEMAIN**
 - **Monitoring** : SOC **100 %** (une fois par jour et par batterie, reset si SOC inférieur à 95 %)
 - **Toutes batteries hors ligne** : alerte seulement après **3 cycles d'échec consécutifs** (environ 15 minutes avec un pas de 5 minutes), pour limiter les faux positifs (timeouts UDP)
 
 ## Tempo et modes Marstek
 
-- La précharge à **12:30** passe par `ModeController.activate_tempo_precharge` : mode **MANUAL** avec puissance de charge négative (l'application Marstek peut afficher un libellé proche d'**UPS** selon le firmware).
-- À **22:00**, `switch_to_manual_night` consulte encore une fois Tempo : si demain est rouge, charge nocturne en **MANUAL** avec créneau 22:00–06:00 et puissance lue depuis la base (`AppConfig` clé `tempo_precharge_power`, défaut **-1000** W si absent). Sinon **0 W** (standby).
+- À **12:30**, `check_tempo_tomorrow` envoie seulement une notification si demain est rouge ; aucune charge n'est lancée en heures pleines.
+- À **22:00**, `switch_to_manual_night` consulte encore une fois Tempo : si demain est rouge, charge nocturne en mode **Passive / UPS** pendant 8 h avec puissance lue depuis la base (`AppConfig` clé `tempo_precharge_power`, défaut **-1000** W si absent). Sinon aucune commande batterie n'est envoyée et le mode Auto/autoconsommation est conservé.
 
 Paramètres exposés côté API config (voir `backend/app/api/routes/config.py`) :
 

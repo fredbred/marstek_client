@@ -441,7 +441,9 @@ class BatteryManager:
             db: Database session
             mode_config: Configuration du mode à appliquer
                 - Pour Auto: {"mode": "auto"}
-                - Pour Manual: {"mode": "manual", "config": ManualConfig}
+                - Pour Manual: {"mode": "manual", "config": ManualConfig dict}
+                - Pour Passive (charge/décharge directe, affichage type UPS) :
+                  {"mode": "passive", "power": int, "cd_time": int}
 
         Returns:
             Dictionnaire {battery_id: success} indiquant le succès pour chaque batterie
@@ -483,6 +485,24 @@ class BatteryManager:
                         config = ManualConfig(**manual_config)
                         result = await self.client.set_mode_manual(
                             battery.ip_address, battery.udp_port, config
+                        )
+                elif mode == "passive":
+                    power = mode_config.get("power")
+                    cd_time = mode_config.get("cd_time")
+                    if power is None or cd_time is None:
+                        logger.error(
+                            "passive_config_missing",
+                            battery_id=battery.id,
+                            power=power,
+                            cd_time=cd_time,
+                        )
+                        result = False
+                    else:
+                        result = await self.client.set_mode_passive(
+                            battery.ip_address,
+                            battery.udp_port,
+                            int(power),
+                            int(cd_time),
                         )
                 else:
                     logger.error("unknown_mode", mode=mode, battery_id=battery.id)

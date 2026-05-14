@@ -1,7 +1,7 @@
 """Service d'intégration API Tempo RTE avec cache Redis."""
 
 from datetime import date, datetime, timedelta
-from enum import StrEnum
+from enum import Enum
 from typing import Any
 
 import httpx
@@ -14,7 +14,18 @@ logger = structlog.get_logger(__name__)
 settings = get_settings()
 
 
-class TempoColor(StrEnum):
+def scheduler_today_date() -> date:
+    """Date calendaire « aujourd'hui » dans le fuseau du scheduler (ex. Europe/Paris).
+
+    Évite les décalages vs ``date.today()`` si le conteneur est en UTC et le cron en heure de Paris.
+    """
+    from zoneinfo import ZoneInfo
+
+    tz_name = get_settings().scheduler.timezone
+    return datetime.now(ZoneInfo(tz_name)).date()
+
+
+class TempoColor(str, Enum):
     """Couleurs Tempo RTE."""
 
     BLUE = "BLUE"  # Jour bleu (tarif bas)
@@ -129,39 +140,43 @@ class TempoService:
             # Dates futures, cache 24h
             return 86400
 
-    async def get_tempo_color(self, target_date: date | None = None) -> TempoColor:
+    async def get_tempo_color(
+        self, target_date: date | None = None, *, force_refresh: bool = False
+    ) -> TempoColor:
         """Récupère la couleur Tempo pour une date donnée.
 
         Utilise le cache Redis si disponible, sinon appelle l'API RTE.
 
         Args:
-            target_date: Date cible (default: aujourd'hui)
+            target_date: Date cible (default: aujourd'hui, fuseau scheduler)
+            force_refresh: Si True, ignore le cache lecture et interroge l'API (puis ré-écrit le cache).
 
         Returns:
             Couleur Tempo (BLUE, WHITE, RED, ou UNKNOWN en cas d'erreur)
         """
         if target_date is None:
-            target_date = date.today()
+            target_date = scheduler_today_date()
 
         if not self.config.enabled:
             logger.debug("tempo_service_disabled", date=target_date.isoformat())
             return TempoColor.UNKNOWN
 
         # Vérifier le cache Redis
-        try:
-            redis = await self._get_redis()
-            cache_key = self._get_cache_key(target_date)
-            cached_color = await redis.get(cache_key)
+        if not force_refresh:
+            try:
+                redis = await self._get_redis()
+                cache_key = self._get_cache_key(target_date)
+                cached_color = await redis.get(cache_key)
 
-            if cached_color:
-                logger.debug(
-                    "tempo_color_cache_hit",
-                    date=target_date.isoformat(),
-                    color=cached_color,
-                )
-                return TempoColor(cached_color)
-        except Exception as e:
-            logger.warning("tempo_cache_read_error", error=str(e))
+                if cached_color:
+                    logger.debug(
+                        "tempo_color_cache_hit",
+                        date=target_date.isoformat(),
+                        color=cached_color,
+                    )
+                    return TempoColor(cached_color)
+            except Exception as e:
+                logger.warning("tempo_cache_read_error", error=str(e))
 
         # Appel API
         try:
@@ -300,42 +315,57 @@ class TempoService:
         logger.warning("tempo_date_not_found", date=date_str)
         return TempoColor.UNKNOWN
 
-    async def get_tomorrow_color(self) -> TempoColor:
+    async def get_tomorrow_color(self, *, force_refresh: bool = False) -> TempoColor:
         """Récupère la couleur Tempo pour demain (J+1).
 
         La couleur J+1 est généralement disponible à partir de 11h.
 
+        Args:
+            force_refresh: Ignorer le cache Redis en lecture (voir ``get_tempo_color``).
+
         Returns:
             Couleur Tempo pour demain
         """
-        tomorrow = date.today() + timedelta(days=1)
-        return await self.get_tempo_color(tomorrow)
+        tomorrow = scheduler_today_date() + timedelta(days=1)
+        return await self.get_tempo_color(tomorrow, force_refresh=force_refresh)
 
-    async def should_activate_precharge(self) -> bool:
-        """Détermine si la précharge doit être activée.
+    async def should_activate_precharge(self, *, force_refresh: bool = False) -> bool:
+        """Détermine si la précharge nuit (jour rouge demain) est justifiée.
 
         Active la précharge si :
-        - Demain est un jour rouge
+        - Demain (fuseau scheduler) est un jour rouge
         - Aujourd'hui n'est pas un jour rouge
+
+        Args:
+            force_refresh: Si True (recommandé à 22h), relit l'API au lieu du cache Redis
+                pour éviter un « demain rouge » obsolète.
 
         Returns:
             True si précharge nécessaire, False sinon
         """
-        today = date.today()
-        today + timedelta(days=1)
+        today = scheduler_today_date()
+        tomorrow = today + timedelta(days=1)
 
-        today_color = await self.get_tempo_color(today)
-        tomorrow_color = await self.get_tomorrow_color()
+        tomorrow_color = await self.get_tempo_color(tomorrow, force_refresh=force_refresh)
+        if tomorrow_color != TempoColor.RED:
+            logger.info(
+                "tempo_precharge_check",
+                tomorrow_color=tomorrow_color.value,
+                should_activate=False,
+                force_refresh=force_refresh,
+            )
+            return False
 
-        should_activate = (
-            tomorrow_color == TempoColor.RED and today_color != TempoColor.RED
-        )
+        today_color = await self.get_tempo_color(today, force_refresh=force_refresh)
+
+        should_activate = today_color != TempoColor.RED
 
         logger.info(
             "tempo_precharge_check",
             today_color=today_color.value,
             tomorrow_color=tomorrow_color.value,
             should_activate=should_activate,
+            force_refresh=force_refresh,
         )
 
         return should_activate
@@ -361,7 +391,7 @@ class TempoService:
             data = response.json()
 
             # Compter les jours restants par couleur
-            today = date.today()
+            today = scheduler_today_date()
             remaining = {"BLUE": 0, "WHITE": 0, "RED": 0}
             for day_data in data:
                 day_date_str = day_data.get("dateJour", "")

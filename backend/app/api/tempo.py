@@ -1,11 +1,11 @@
 """API endpoints for Tempo RTE integration."""
 
-from datetime import date, timedelta
+from datetime import timedelta
 
 import structlog
 from fastapi import APIRouter, Depends, HTTPException
 
-from app.core.tempo_service import TempoCalendar, TempoService
+from app.core.tempo_service import TempoCalendar, TempoService, scheduler_today_date
 
 logger = structlog.get_logger(__name__)
 router = APIRouter(prefix="/tempo", tags=["tempo"])
@@ -26,7 +26,7 @@ async def get_tempo_today(
         Dict avec date et color
     """
     try:
-        today = date.today()
+        today = scheduler_today_date()
         color = await tempo_service.get_tempo_color(today)
 
         calendar = TempoCalendar(date=today, color=color)
@@ -54,7 +54,7 @@ async def get_tempo_tomorrow(
         Dict avec date et color
     """
     try:
-        tomorrow = date.today() + timedelta(days=1)
+        tomorrow = scheduler_today_date() + timedelta(days=1)
         color = await tempo_service.get_tomorrow_color()
 
         calendar = TempoCalendar(date=tomorrow, color=color)
@@ -82,11 +82,11 @@ async def should_activate_precharge(
     try:
         should_activate = await tempo_service.should_activate_precharge()
 
-        today = date.today()
+        today = scheduler_today_date()
         tomorrow = today + timedelta(days=1)
 
         today_color = await tempo_service.get_tempo_color(today)
-        tomorrow_color = await tempo_service.get_tomorrow_color()
+        tomorrow_color = await tempo_service.get_tempo_color(tomorrow)
 
         return {
             "should_activate": should_activate,

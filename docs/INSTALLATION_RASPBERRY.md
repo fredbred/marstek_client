@@ -59,11 +59,11 @@ REDIS_URL=redis://redis:6379/0
 
 # Adresses IP des batteries (à adapter selon votre réseau)
 BATTERY_1_IP=192.168.1.100
-BATTERY_1_PORT=30001
+BATTERY_1_PORT=30000
 BATTERY_2_IP=192.168.1.101
-BATTERY_2_PORT=30002
+BATTERY_2_PORT=49154
 BATTERY_3_IP=192.168.1.102
-BATTERY_3_PORT=30003
+BATTERY_3_PORT=30000
 
 # Notifications Telegram (optionnel)
 TELEGRAM_BOT_TOKEN=votre_token_bot
@@ -225,7 +225,7 @@ docker compose exec backend alembic upgrade head
    ```
 4. Vérifier les ports UDP:
    ```bash
-   sudo netstat -ulnp | grep 30001
+   sudo netstat -ulnp | grep 30000
    ```
 
 ## Optimisations Raspberry Pi
