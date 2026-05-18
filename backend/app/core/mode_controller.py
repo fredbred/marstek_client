@@ -213,7 +213,9 @@ class ModeController:
             )
 
             if success_count < total_count:
-                failed_batteries = [bid for bid, success in results.items() if not success]
+                failed_batteries = [
+                    bid for bid, success in results.items() if not success
+                ]
                 if self.notification_service:
                     await self._send_notification(
                         "⚠️ Précharge Tempo - Échec partiel",
@@ -267,9 +269,9 @@ class ModeController:
         import asyncio
 
         power_watts = (
-            power_limit if power_limit <= 0 else self._charge_watts_from_config_value(
-                power_limit
-            )
+            power_limit
+            if power_limit <= 0
+            else self._charge_watts_from_config_value(power_limit)
         )
 
         logger.info(
@@ -291,7 +293,9 @@ class ModeController:
             failed = [bid for bid, success in results.items() if not success]
             if not failed:
                 break
-            logger.info("retrying_tempo_precharge", retry=retry, failed_batteries=failed)
+            logger.info(
+                "retrying_tempo_precharge", retry=retry, failed_batteries=failed
+            )
             await asyncio.sleep(60.0)
             retry_results = await self.battery_manager.set_mode_all(db, mode_config)
             for bid, success in retry_results.items():
@@ -371,7 +375,9 @@ class ModeController:
                 await self.notification_service.send_notification(
                     title, message, level=level
                 )
-            elif level == "warning" and hasattr(self.notification_service, "send_warning"):
+            elif level == "warning" and hasattr(
+                self.notification_service, "send_warning"
+            ):
                 await self.notification_service.send_warning(title, message)
             elif level == "error" and hasattr(self.notification_service, "send_error"):
                 await self.notification_service.send_error(title, message)

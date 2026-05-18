@@ -8,7 +8,12 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.dependencies import get_battery_manager, get_db_session
-from app.api.schemas import BatteryResponse, BatteryStatusResponse, BatteryUpdate
+from app.api.schemas import (
+    BatteryDiagnosticsResponse,
+    BatteryResponse,
+    BatteryStatusResponse,
+    BatteryUpdate,
+)
 from app.core import BatteryManager
 from app.models import Battery
 
@@ -133,6 +138,52 @@ async def get_battery_status(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Error retrieving battery status: {str(e)}",
+        )
+
+
+@router.get("/{battery_id}/diagnostics", response_model=BatteryDiagnosticsResponse)
+@limiter.limit("10/minute")
+async def get_battery_diagnostics(
+    request: Request,
+    battery_id: int,
+    db: AsyncSession = Depends(get_db_session),
+    manager: BatteryManager = Depends(get_battery_manager),
+) -> BatteryDiagnosticsResponse:
+    """Récupère un diagnostic lecture seule d'une batterie.
+
+    Args:
+        battery_id: ID de la batterie
+        db: Database session
+        manager: Battery manager
+
+    Returns:
+        Synthèse de diagnostic avec erreurs par source
+
+    Raises:
+        HTTPException: Si la batterie n'existe pas ou erreur de récupération
+    """
+    try:
+        stmt = select(Battery).where(Battery.id == battery_id)
+        result = await db.execute(stmt)
+        battery = result.scalar_one_or_none()
+
+        if not battery:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Battery {battery_id} not found",
+            )
+
+        logger.info("battery_diagnostics_requested", battery_id=battery_id)
+        diagnostics = await manager.get_battery_diagnostics(battery)
+        return BatteryDiagnosticsResponse(**diagnostics)
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error("battery_diagnostics_error", battery_id=battery_id, error=str(e))
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error retrieving battery diagnostics: {str(e)}",
         )
 
 

@@ -3,6 +3,7 @@
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+from apscheduler.jobstores.memory import MemoryJobStore
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
 from app.scheduler.jobs import job_monitor_batteries, job_switch_to_auto
@@ -99,56 +100,52 @@ async def test_job_monitor_batteries(db_session) -> None:
 
 
 async def test_scheduler_persistence() -> None:
-    """Test that scheduler jobs persist across restarts."""
-    pytest.importorskip("psycopg2")
+    """Test scheduler can restart without requiring a real PostgreSQL job store."""
     from app.scheduler.scheduler import shutdown_scheduler
 
     await shutdown_scheduler()  # Reset scheduler
 
-    try:
-        # Initialize scheduler
-        scheduler1 = init_scheduler()
-        scheduler1.start()
+    with patch(
+        "app.scheduler.scheduler.SQLAlchemyJobStore",
+        lambda **_: MemoryJobStore(),
+    ):
+        try:
+            scheduler1 = init_scheduler()
+            scheduler1.start()
+            initial_count = len(scheduler1.get_jobs())
 
-        # Get initial jobs
-        initial_jobs = scheduler1.get_jobs()
-        initial_count = len(initial_jobs)
+            await shutdown_scheduler()
 
-        # Shutdown
-        await shutdown_scheduler()
+            scheduler2 = init_scheduler()
+            scheduler2.start()
+            restored_count = len(scheduler2.get_jobs())
 
-        # Reinitialize
-        scheduler2 = init_scheduler()
-        scheduler2.start()
+            assert initial_count == 4
+            assert restored_count == 4
 
-        # Check jobs are restored
-        restored_jobs = scheduler2.get_jobs()
-        restored_count = len(restored_jobs)
-
-        # Jobs should be restored from database
-        assert restored_count >= initial_count
-
-    finally:
-        await shutdown_scheduler()
-    from app.scheduler.scheduler import shutdown_scheduler
-
-    await shutdown_scheduler()  # Reset scheduler
+        finally:
+            await shutdown_scheduler()
 
 
 @pytest.mark.asyncio
 async def test_scheduler_job_registration() -> None:
-    """Test that all jobs are registered."""
-    pytest.importorskip("psycopg2")
-    try:
-        scheduler = init_scheduler()
-        scheduler.start()
+    """Test that all expected jobs are registered."""
+    with patch(
+        "app.scheduler.scheduler.SQLAlchemyJobStore",
+        lambda **_: MemoryJobStore(),
+    ):
+        try:
+            scheduler = init_scheduler()
+            scheduler.start()
 
-        jobs = scheduler.get_jobs()
-        job_ids = [job.id for job in jobs]
+            job_ids = {job.id for job in scheduler.get_jobs()}
 
-        # Check that expected jobs are registered
-        # At least some of these should be present
-        assert len(job_ids) > 0
+            assert job_ids == {
+                "switch_to_auto",
+                "switch_to_manual_night",
+                "check_tempo_tomorrow",
+                "monitor_batteries",
+            }
 
-    finally:
-        await shutdown_scheduler()
+        finally:
+            await shutdown_scheduler()

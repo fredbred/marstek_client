@@ -1,6 +1,7 @@
 """Battery manager for orchestrating multiple Marstek batteries."""
 
 import asyncio
+from collections.abc import Awaitable
 from datetime import datetime
 from typing import Any
 
@@ -9,6 +10,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.marstek_client import MarstekUDPClient
+from app.core.marstek_modbus_client import MarstekModbusClient
 from app.models import Battery, BatteryStatusLog
 
 logger = structlog.get_logger(__name__)
@@ -30,15 +32,21 @@ class BatteryManager:
     avec gestion d'erreurs individuelles et logging structuré.
     """
 
-    def __init__(self, client: MarstekUDPClient | None = None) -> None:
+    def __init__(
+        self,
+        client: MarstekUDPClient | None = None,
+        modbus_client: MarstekModbusClient | None = None,
+    ) -> None:
         """Initialize battery manager.
 
         Args:
             client: Marstek UDP client (creates new one if None)
+            modbus_client: Read-only Modbus client (creates new one if None)
         """
         self.client = client or MarstekUDPClient(
             timeout=20.0, max_retries=3, retry_backoff=1.0
         )
+        self.modbus_client = modbus_client or MarstekModbusClient()
         self._batteries_cache: dict[int, Battery] = {}
 
     async def discover_and_register(self, db: AsyncSession) -> list[Battery]:
@@ -431,6 +439,138 @@ class BatteryManager:
                 error=str(e),
             )
             raise
+
+    async def get_battery_diagnostics(self, battery: Battery) -> dict[str, Any]:
+        """Build a read-only diagnostic snapshot for one battery.
+
+        Args:
+            battery: Battery model instance
+
+        Returns:
+            Diagnostic data with per-source errors.
+        """
+        errors: dict[str, str] = {}
+        bat_status = await self._safe_read_source(
+            "bat_status",
+            errors,
+            self.client.get_battery_status(battery.ip_address, battery.udp_port),
+        )
+        es_status = await self._safe_read_source(
+            "es_status",
+            errors,
+            self.client.get_es_status(battery.ip_address, battery.udp_port),
+        )
+        mode_info = await self._safe_read_source(
+            "mode_info",
+            errors,
+            self.client.get_current_mode(battery.ip_address, battery.udp_port),
+        )
+        em_status = await self._safe_read_source(
+            "em_status",
+            errors,
+            self.client.get_em_status(battery.ip_address, battery.udp_port),
+        )
+        pv_status = await self._safe_read_source(
+            "pv_status",
+            errors,
+            self.client.get_pv_status(battery.ip_address, battery.udp_port),
+        )
+        modbus_status = await self._safe_read_source(
+            "modbus",
+            errors,
+            self.modbus_client.read_diagnostics(battery.ip_address),
+        )
+
+        bat_data = self._model_to_dict(bat_status)
+        es_data = self._model_to_dict(es_status)
+        mode_data = self._model_to_dict(mode_info)
+        em_data = self._model_to_dict(em_status)
+        pv_data = self._model_to_dict(pv_status)
+        modbus_data = self._model_to_dict(modbus_status)
+
+        if modbus_data:
+            modbus_errors = modbus_data.pop("errors", {})
+            for field_name, error in modbus_errors.items():
+                errors[f"modbus.{field_name}"] = error
+
+        return {
+            "battery_id": battery.id,
+            "battery_name": battery.name,
+            "timestamp": datetime.utcnow(),
+            "ip_address": battery.ip_address,
+            "udp_port": battery.udp_port,
+            "soc": self._first_present(
+                bat_data.get("soc"), es_data.get("bat_soc"), mode_data.get("bat_soc")
+            ),
+            "charg_flag": bat_data.get("charg_flag"),
+            "dischrg_flag": bat_data.get("dischrg_flag"),
+            "mode": mode_data.get("mode"),
+            "bat_power": es_data.get("bat_power"),
+            "pv_power": self._first_present(
+                pv_data.get("pv_power"), es_data.get("pv_power")
+            ),
+            "pv_voltage": pv_data.get("pv_voltage"),
+            "pv_current": pv_data.get("pv_current"),
+            "pv_state": pv_data.get("pv_state"),
+            "ongrid_power": self._first_present(
+                mode_data.get("ongrid_power"), es_data.get("ongrid_power")
+            ),
+            "offgrid_power": self._first_present(
+                mode_data.get("offgrid_power"), es_data.get("offgrid_power")
+            ),
+            "ct_state": self._first_present(
+                em_data.get("ct_state"), mode_data.get("ct_state")
+            ),
+            "a_power": self._first_present(
+                em_data.get("a_power"), mode_data.get("a_power")
+            ),
+            "b_power": self._first_present(
+                em_data.get("b_power"), mode_data.get("b_power")
+            ),
+            "c_power": self._first_present(
+                em_data.get("c_power"), mode_data.get("c_power")
+            ),
+            "total_power": self._first_present(
+                em_data.get("total_power"), mode_data.get("total_power")
+            ),
+            "input_energy": self._first_present(
+                em_data.get("input_energy"), mode_data.get("input_energy")
+            ),
+            "output_energy": self._first_present(
+                em_data.get("output_energy"), mode_data.get("output_energy")
+            ),
+            "modbus": modbus_data or None,
+            "errors": errors,
+        }
+
+    async def _safe_read_source(
+        self,
+        source: str,
+        errors: dict[str, str],
+        awaitable: Awaitable[Any],
+    ) -> Any:
+        """Read one diagnostic source without failing the whole snapshot."""
+        try:
+            return await awaitable
+        except Exception as exc:
+            errors[source] = str(exc)
+            logger.warning("diagnostic_source_failed", source=source, error=str(exc))
+        return None
+
+    def _model_to_dict(self, value: Any) -> dict[str, Any]:
+        """Convert Pydantic models or dictionaries to a plain dictionary."""
+        if value is None:
+            return {}
+        if hasattr(value, "model_dump"):
+            dumped = value.model_dump()
+            return dumped if isinstance(dumped, dict) else {}
+        if isinstance(value, dict):
+            return dict(value)
+        return {}
+
+    def _first_present(self, *values: Any) -> Any:
+        """Return the first value that is not None."""
+        return next((value for value in values if value is not None), None)
 
     async def set_mode_all(
         self, db: AsyncSession, mode_config: dict[str, Any]

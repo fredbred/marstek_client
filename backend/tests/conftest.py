@@ -70,6 +70,8 @@ def mock_udp_client() -> MagicMock:
     mock_client.get_device_info = AsyncMock(return_value=None)
     mock_client.get_battery_status = AsyncMock(return_value=None)
     mock_client.get_es_status = AsyncMock(return_value=None)
+    mock_client.get_em_status = AsyncMock(return_value=None)
+    mock_client.get_pv_status = AsyncMock(return_value=None)
     mock_client.set_mode_auto = AsyncMock(return_value=True)
     mock_client.set_mode_manual = AsyncMock(return_value=True)
     mock_client.get_current_mode = AsyncMock(return_value=None)

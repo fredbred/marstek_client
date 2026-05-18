@@ -2,7 +2,7 @@
 
 from typing import Literal
 
-from pydantic import BaseModel, Field
+from pydantic import AliasChoices, BaseModel, Field
 
 
 class DeviceInfo(BaseModel):
@@ -58,6 +58,37 @@ class ESStatus(BaseModel):
     )
 
 
+class EMStatus(BaseModel):
+    """Electric meter status from EM.GetStatus."""
+
+    id: int | None = Field(default=None, description="Instance ID")
+    ct_state: int | None = Field(default=None, description="CT clamp state")
+    a_power: float | None = Field(default=None, description="Phase A power [W]")
+    b_power: float | None = Field(default=None, description="Phase B power [W]")
+    c_power: float | None = Field(default=None, description="Phase C power [W]")
+    total_power: float | None = Field(default=None, description="Total meter power [W]")
+    input_energy: float | None = Field(
+        default=None, description="Imported meter energy [Wh]"
+    )
+    output_energy: float | None = Field(
+        default=None, description="Exported meter energy [Wh]"
+    )
+
+
+class PVStatus(BaseModel):
+    """PV status from PV.GetStatus."""
+
+    id: int | None = Field(default=None, description="Instance ID")
+    pv_power: float | None = Field(default=None, description="PV power [W]")
+    pv_voltage: float | None = Field(default=None, description="PV voltage [V]")
+    pv_current: float | None = Field(default=None, description="PV current [A]")
+    pv_state: int | str | None = Field(
+        default=None,
+        validation_alias=AliasChoices("pv_state", "PV_state"),
+        description="PV state",
+    )
+
+
 class ModeInfo(BaseModel):
     """Mode information from ES.GetMode."""
 
@@ -70,6 +101,17 @@ class ModeInfo(BaseModel):
     offgrid_power: float | None = Field(default=None, description="Off-grid power [W]")
     bat_soc: int | None = Field(
         default=None, description="Battery SOC [%]", ge=0, le=100
+    )
+    ct_state: int | None = Field(default=None, description="CT clamp state")
+    a_power: float | None = Field(default=None, description="Phase A power [W]")
+    b_power: float | None = Field(default=None, description="Phase B power [W]")
+    c_power: float | None = Field(default=None, description="Phase C power [W]")
+    total_power: float | None = Field(default=None, description="Total meter power [W]")
+    input_energy: float | None = Field(
+        default=None, description="Imported meter energy [Wh]"
+    )
+    output_energy: float | None = Field(
+        default=None, description="Exported meter energy [Wh]"
     )
 
 

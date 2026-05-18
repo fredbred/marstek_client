@@ -24,6 +24,7 @@ async def job_switch_to_auto() -> None:
     de la journée (6h-22h).
     """
     from datetime import datetime
+
     from app.notifications import Notifier
 
     start_time = datetime.now()
@@ -90,6 +91,7 @@ async def job_switch_to_manual_night() -> None:
     les batteries restent en Auto / autoconsommation.
     """
     from datetime import datetime
+
     from app.notifications import Notifier
 
     start_time = datetime.now()
@@ -162,7 +164,11 @@ async def job_check_tempo_tomorrow() -> None:
 
     try:
         from app.config import get_settings
-        from app.core.tempo_service import TempoColor, TempoService, scheduler_today_date
+        from app.core.tempo_service import (
+            TempoColor,
+            TempoService,
+            scheduler_today_date,
+        )
 
         settings = get_settings()
 
@@ -284,7 +290,7 @@ async def job_monitor_batteries() -> None:
 
                 soc = bat_status.get("soc", 0)
                 bat_temp = bat_status.get("bat_temp")
-                battery = battery_by_id.get(battery_id)
+                alert_battery = battery_by_id.get(battery_id)
 
                 # Alerte SOC bas
                 if soc < SOC_LOW_THRESHOLD:
@@ -297,13 +303,13 @@ async def job_monitor_batteries() -> None:
 
                 # Notification batterie pleine (une fois par jour / batterie)
                 if (
-                    battery is not None
+                    alert_battery is not None
                     and soc >= SOC_FULL_THRESHOLD
                     and _soc_100_notified.get(battery_id) != today
                 ):
                     await notifier.send_info(
                         "Batterie pleine",
-                        f"{battery.name} ({battery.ip_address}) est à {soc} %.",
+                        f"{alert_battery.name} ({alert_battery.ip_address}) est à {soc} %.",
                     )
                     _soc_100_notified[battery_id] = today
                     logger.info(

@@ -346,7 +346,9 @@ class TempoService:
         today = scheduler_today_date()
         tomorrow = today + timedelta(days=1)
 
-        tomorrow_color = await self.get_tempo_color(tomorrow, force_refresh=force_refresh)
+        tomorrow_color = await self.get_tempo_color(
+            tomorrow, force_refresh=force_refresh
+        )
         if tomorrow_color != TempoColor.RED:
             logger.info(
                 "tempo_precharge_check",

@@ -2,11 +2,14 @@
 
 from app.core.battery_manager import BatteryManager
 from app.core.marstek_client import MarstekAPIError, MarstekUDPClient
+from app.core.marstek_modbus_client import MarstekModbusClient, MarstekModbusStatus
 from app.core.mode_controller import ModeController
 
 __all__ = [
     "BatteryManager",
     "MarstekUDPClient",
     "MarstekAPIError",
+    "MarstekModbusClient",
+    "MarstekModbusStatus",
     "ModeController",
 ]

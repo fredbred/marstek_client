@@ -14,9 +14,11 @@ import structlog
 from app.models.marstek_api import (
     BatteryStatus,
     DeviceInfo,
+    EMStatus,
     ESStatus,
     ManualConfig,
     ModeInfo,
+    PVStatus,
     SetModeResult,
 )
 
@@ -474,6 +476,74 @@ class MarstekUDPClient:
         result = response["result"]
         return ESStatus(**result)
 
+    async def get_em_status(
+        self, ip: str, port: int, instance_id: int | None = None
+    ) -> EMStatus:
+        """Get electric meter status.
+
+        Args:
+            ip: Device IP address
+            port: Device UDP port
+            instance_id: Instance ID (default: self.instance_id)
+
+        Returns:
+            Electric meter status
+
+        Raises:
+            MarstekAPIError: If command fails
+        """
+        if instance_id is None:
+            instance_id = self.instance_id
+
+        command = {
+            "method": "EM.GetStatus",
+            "params": {"id": instance_id},
+        }
+
+        response = await self.send_command(ip, port, command)
+
+        if "result" not in response:
+            raise MarstekAPIError(
+                "No result in response", method="EM.GetStatus", response=response
+            )
+
+        result = response["result"]
+        return EMStatus(**result)
+
+    async def get_pv_status(
+        self, ip: str, port: int, instance_id: int | None = None
+    ) -> PVStatus:
+        """Get PV status.
+
+        Args:
+            ip: Device IP address
+            port: Device UDP port
+            instance_id: Instance ID (default: self.instance_id)
+
+        Returns:
+            PV status
+
+        Raises:
+            MarstekAPIError: If command fails
+        """
+        if instance_id is None:
+            instance_id = self.instance_id
+
+        command = {
+            "method": "PV.GetStatus",
+            "params": {"id": instance_id},
+        }
+
+        response = await self.send_command(ip, port, command)
+
+        if "result" not in response:
+            raise MarstekAPIError(
+                "No result in response", method="PV.GetStatus", response=response
+            )
+
+        result = response["result"]
+        return PVStatus(**result)
+
     async def get_current_mode(
         self, ip: str, port: int, instance_id: int | None = None
     ) -> ModeInfo:
@@ -515,13 +585,8 @@ class MarstekUDPClient:
         elif mode is None:
             mode = None
 
-        return ModeInfo(
-            id=result.get("id"),
-            mode=mode,
-            ongrid_power=result.get("ongrid_power"),
-            offgrid_power=result.get("offgrid_power"),
-            bat_soc=result.get("bat_soc"),
-        )
+        result["mode"] = mode
+        return ModeInfo(**result)
 
     async def _wake_up_device(self, ip: str, port: int) -> None:
         """Envoie une commande de réveil avant les opérations importantes."""
