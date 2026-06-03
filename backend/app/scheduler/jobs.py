@@ -1,83 +1,74 @@
 """Scheduled jobs for battery management."""
 
 import asyncio
-from datetime import datetime
+from datetime import datetime, timedelta
 
 import structlog
-from sqlalchemy import select, update
 
 from app.core import BatteryManager, ModeController
-from app.core.marstek_client import MarstekUDPClient
 from app.database import async_session_maker
-from app.models import Battery
-from app.notifications import Notifier
 
 logger = structlog.get_logger(__name__)
 
-# Rate limiting constants (based on Marstek API recommendations)
-MIN_POLLING_INTERVAL_SECONDS = 60
-DELAY_BETWEEN_BATTERIES_SECONDS = 20
 SOC_LOW_THRESHOLD = 20
 SOC_FULL_THRESHOLD = 100
-TEMPERATURE_HIGH_THRESHOLD = 45
 
-# State tracking for notifications (avoid spam)
-_consecutive_all_offline = 0  # Count consecutive "all offline" events
-_soc_100_notified: dict[int, bool] = {}  # Track SOC 100% notifications per battery
-_last_monitoring_date: str = ""  # Reset SOC notifications daily
-
-CONSECUTIVE_FAILURES_BEFORE_ALERT = 3  # Require 3 consecutive failures
-
-# Global notifier instance
-_notifier: Notifier | None = None
-
-
-def _get_notifier() -> Notifier:
-    """Get or create notifier instance."""
-    global _notifier
-    if _notifier is None:
-        _notifier = Notifier()
-    return _notifier
+# Anti-spam des notifications SOC 100 %, reset chaque jour.
+_soc_100_notified: dict[int, str] = {}
 
 
 async def job_switch_to_auto() -> None:
-    """Exécuté à 6h00 - Passage mode AUTO pour la journée."""
-    logger.info("scheduled_job_started", job="switch_to_auto")
-    notifier = _get_notifier()
+    """Exécuté à 6h00 - Passage mode AUTO pour la journée.
 
-    # Reset SOC 100% notifications for new day
-    global _soc_100_notified
-    _soc_100_notified = {}
+    Passe toutes les batteries actives en mode AUTO pour la période
+    de la journée (6h-22h).
+    """
+    from datetime import datetime
+
+    from app.notifications import Notifier
+
+    start_time = datetime.now()
+    notifier = Notifier()
+    logger.info(
+        "scheduled_job_started",
+        job="switch_to_auto",
+        start_time=start_time.isoformat(),
+        description="Passage en mode AUTO pour consommation journée",
+    )
 
     async with async_session_maker() as db:
         try:
             manager = BatteryManager()
-            controller = ModeController(manager)
+            controller = ModeController(manager, notification_service=notifier)
+
             results = await controller.switch_to_auto_mode(db)
 
             success_count = sum(1 for success in results.values() if success)
             total_count = len(results)
+            failed_batteries = [bid for bid, success in results.items() if not success]
+
+            end_time = datetime.now()
+            duration = (end_time - start_time).total_seconds()
 
             logger.info(
                 "scheduled_job_completed",
                 job="switch_to_auto",
                 success_count=success_count,
                 total_count=total_count,
+                failed_batteries=failed_batteries if failed_batteries else None,
+                duration_seconds=duration,
+                end_time=end_time.isoformat(),
+                results=results,
             )
 
-            if success_count == total_count:
-                await notifier.send_info(
-                    "Mode AUTO activé",
-                    f"✅ {success_count}/{total_count} batteries en mode AUTO\n"
-                    f"Heure: {datetime.now().strftime('%H:%M')}",
-                )
-            else:
-                failed = [bid for bid, ok in results.items() if not ok]
-                await notifier.send_warning(
-                    "Mode AUTO - Échec partiel",
-                    f"⚠️ {success_count}/{total_count} batteries OK\n"
-                    f"Échecs: batteries {failed}\n"
-                    f"Heure: {datetime.now().strftime('%H:%M')}",
+            # Log individuel par batterie pour traçabilité
+            for battery_id, success in results.items():
+                logger.info(
+                    "battery_mode_change_result",
+                    job="switch_to_auto",
+                    battery_id=battery_id,
+                    success=success,
+                    target_mode="AUTO",
                 )
 
         except Exception as e:
@@ -88,45 +79,63 @@ async def job_switch_to_auto() -> None:
                 exc_info=True,
             )
             await notifier.send_error(
-                "Erreur Mode AUTO",
-                f"❌ Le job switch_to_auto a échoué\nErreur: {str(e)[:100]}",
+                "Erreur passage AUTO",
+                f"Le passage en mode AUTO de 6h00 a échoué: {str(e)[:200]}",
             )
 
 
 async def job_switch_to_manual_night() -> None:
-    """Exécuté à 22h00 - Passage mode MANUAL 0W pour la nuit."""
-    logger.info("scheduled_job_started", job="switch_to_manual_night")
-    notifier = _get_notifier()
+    """Exécuté à 22h00 - Check Tempo nuit et précharge si rouge.
+
+    Hors jour rouge demain, aucune commande batterie n'est envoyée :
+    les batteries restent en Auto / autoconsommation.
+    """
+    from datetime import datetime
+
+    from app.notifications import Notifier
+
+    start_time = datetime.now()
+    notifier = Notifier()
+    logger.info(
+        "scheduled_job_started",
+        job="switch_to_manual_night",
+        start_time=start_time.isoformat(),
+        description="Check Tempo nuit, précharge seulement si rouge demain",
+    )
 
     async with async_session_maker() as db:
         try:
             manager = BatteryManager()
-            controller = ModeController(manager)
+            controller = ModeController(manager, notification_service=notifier)
+
             results = await controller.switch_to_manual_night(db)
 
             success_count = sum(1 for success in results.values() if success)
             total_count = len(results)
+            failed_batteries = [bid for bid, success in results.items() if not success]
+
+            end_time = datetime.now()
+            duration = (end_time - start_time).total_seconds()
 
             logger.info(
                 "scheduled_job_completed",
                 job="switch_to_manual_night",
                 success_count=success_count,
                 total_count=total_count,
+                failed_batteries=failed_batteries if failed_batteries else None,
+                duration_seconds=duration,
+                end_time=end_time.isoformat(),
+                results=results,
             )
 
-            if success_count == total_count:
-                await notifier.send_info(
-                    "Mode NUIT activé",
-                    f"🌙 {success_count}/{total_count} batteries en STANDBY (0W)\n"
-                    f"Heure: {datetime.now().strftime('%H:%M')}",
-                )
-            else:
-                failed = [bid for bid, ok in results.items() if not ok]
-                await notifier.send_warning(
-                    "Mode NUIT - Échec partiel",
-                    f"⚠️ {success_count}/{total_count} batteries OK\n"
-                    f"Échecs: batteries {failed}\n"
-                    f"Heure: {datetime.now().strftime('%H:%M')}",
+            # Log individuel par batterie
+            for battery_id, success in results.items():
+                logger.info(
+                    "battery_mode_change_result",
+                    job="switch_to_manual_night",
+                    battery_id=battery_id,
+                    success=success,
+                    target_mode="TEMPO_NIGHT_PRECHARGE",
                 )
 
         except Exception as e:
@@ -137,206 +146,265 @@ async def job_switch_to_manual_night() -> None:
                 exc_info=True,
             )
             await notifier.send_error(
-                "Erreur Mode NUIT",
-                f"❌ Le job switch_to_manual_night a échoué\nErreur: {str(e)[:100]}",
+                "Erreur check Tempo nuit",
+                f"Le check Tempo de 22h00 a échoué: {str(e)[:200]}",
             )
 
 
 async def job_check_tempo_tomorrow() -> None:
-    """Exécuté à 12h30 - Check RTE API et active précharge si jour rouge."""
+    """Exécuté à 12h30 - Détecte jour rouge demain (pas de charge en HP).
+
+    La charge réseau est déclenchée à 22h00 (heures creuses), en mode Passive
+    (affichage type UPS), via switch_to_manual_night.
+    """
     logger.info("scheduled_job_started", job="check_tempo_tomorrow")
-    notifier = _get_notifier()
+    from app.notifications import Notifier
+
+    notifier = Notifier()
+
+    try:
+        from app.config import get_settings
+        from app.core.tempo_service import (
+            TempoColor,
+            TempoService,
+            scheduler_today_date,
+        )
+
+        settings = get_settings()
+
+        if not settings.tempo.enabled:
+            logger.info("tempo_disabled", job="check_tempo_tomorrow")
+            return
+
+        async with TempoService() as tempo_service:
+            tomorrow = scheduler_today_date() + timedelta(days=1)
+            color = await tempo_service.get_tempo_color(tomorrow, force_refresh=True)
+
+            if color == TempoColor.RED:
+                logger.info(
+                    "tempo_red_day_detected",
+                    date=tomorrow.isoformat(),
+                    action="notify_only_no_midday_charge",
+                )
+
+                await notifier.send_warning(
+                    "🔴 JOUR ROUGE DEMAIN",
+                    f"Date: {tomorrow.strftime('%d/%m/%Y')}\n\n"
+                    f"Pas de charge aux heures pleines (12h30).\n"
+                    f"Programme:\n"
+                    f"• 22h00: charge HC (mode Passive / type UPS, "
+                    f"puissance configurée tempo_precharge_power)\n"
+                    f"• 06h00: mode AUTO\n\n"
+                    f"Évitez la consommation aux heures pleines.",
+                )
+
+                logger.info(
+                    "tempo_red_notification_sent_awaiting_22h_precharge",
+                    date=tomorrow.isoformat(),
+                )
+            else:
+                logger.debug(
+                    "tempo_precharge_not_needed",
+                    color=color.value if color else "unknown",
+                )
+
+    except Exception as e:
+        logger.error(
+            "scheduled_job_failed",
+            job="check_tempo_tomorrow",
+            error=str(e),
+            exc_info=True,
+        )
+
+
+async def job_monitor_batteries() -> None:
+    """Exécuté toutes les 10 minutes - Rafraîchit le cache des batteries.
+
+    Récupère le status de chaque batterie avec délai entre chaque
+    pour éviter le rate limiting des VenusE.
+    """
+    logger.info("scheduled_job_started", job="monitor_batteries")
+    from app.notifications import Notifier
+
+    notifier = Notifier()
+    today = datetime.now().strftime("%Y-%m-%d")
 
     async with async_session_maker() as db:
         try:
-            from datetime import timedelta
+            from sqlalchemy import select, update
 
-            from app.config import get_settings
-            from app.core.tempo_service import TempoColor, TempoService
+            from app.models import Battery
 
-            settings = get_settings()
+            manager = BatteryManager()
 
-            if not settings.tempo.enabled:
-                logger.info("tempo_disabled", job="check_tempo_tomorrow")
-                return
+            # Récupérer les batteries actives
+            stmt = select(Battery).where(Battery.is_active)
+            result = await db.execute(stmt)
+            batteries = result.scalars().all()
+            battery_by_id = {battery.id: battery for battery in batteries}
 
-            async with TempoService() as tempo_service:
-                tomorrow = datetime.now().date() + timedelta(days=1)
-                color = await tempo_service.get_tempo_color(tomorrow)
+            # Rafraîchir chaque batterie avec délai de 120s
+            for i, battery in enumerate(batteries):
+                logger.info(
+                    "refreshing_battery",
+                    battery_id=battery.id,
+                    index=i + 1,
+                    total=len(batteries),
+                )
+                await manager.refresh_single_battery(battery)
 
-                if color == TempoColor.RED:
+                # Attendre 120s avant la prochaine batterie (sauf la dernière)
+                if i < len(batteries) - 1:
+                    await asyncio.sleep(120.0)
+
+            # Récupérer les status depuis le cache
+            status_dict = await manager.get_all_status(db)
+
+            # Mettre à jour last_seen_at pour les batteries qui répondent (health check)
+            for battery_id, status_data in status_dict.items():
+                if "error" not in status_data:
+                    await db.execute(
+                        update(Battery)
+                        .where(Battery.id == battery_id)
+                        .values(last_seen_at=datetime.utcnow())
+                    )
+
+            await db.commit()
+
+            # Logger en base de données
+            await manager.log_status_to_db(db)
+
+            # Vérifier les alertes
+            for battery_id, status_data in status_dict.items():
+                if "error" in status_data:
+                    logger.warning(
+                        "battery_monitoring_error",
+                        battery_id=battery_id,
+                        error=status_data["error"],
+                    )
+                    continue
+
+                bat_status = status_data.get("bat_status")
+                if not bat_status:
+                    continue
+
+                soc = bat_status.get("soc", 0)
+                bat_temp = bat_status.get("bat_temp")
+                alert_battery = battery_by_id.get(battery_id)
+
+                # Alerte SOC bas
+                if soc < SOC_LOW_THRESHOLD:
+                    logger.warning(
+                        "battery_low_soc",
+                        battery_id=battery_id,
+                        soc=soc,
+                    )
+                    # TODO: Envoyer notification
+
+                # Notification batterie pleine (une fois par jour / batterie)
+                if (
+                    alert_battery is not None
+                    and soc >= SOC_FULL_THRESHOLD
+                    and _soc_100_notified.get(battery_id) != today
+                ):
+                    await notifier.send_info(
+                        "Batterie pleine",
+                        f"{alert_battery.name} ({alert_battery.ip_address}) est à {soc} %.",
+                    )
+                    _soc_100_notified[battery_id] = today
                     logger.info(
-                        "tempo_red_day_detected",
-                        date=tomorrow.isoformat(),
-                        action="notification_only",
+                        "battery_full_notified",
+                        battery_id=battery_id,
+                        soc=soc,
+                        date=today,
                     )
 
-                    # Ne pas changer le mode ici ! Les batteries doivent rester
-                    # en AUTO jusqu'à 22h. Le job job_switch_to_manual_night()
-                    # se chargera de passer en MANUAL avec charge à 22h00.
+                # Alerte température élevée
+                if bat_temp and bat_temp > 45:
+                    logger.warning(
+                        "battery_high_temperature",
+                        battery_id=battery_id,
+                        temperature=bat_temp,
+                    )
+                    # TODO: Envoyer notification
 
-                    await notifier.send_warning(
-                        "🔴 JOUR ROUGE DEMAIN",
-                        f"Date: {tomorrow.strftime('%d/%m/%Y')}\n\n"
-                        f"Programme:\n"
-                        f"• 22h00: Charge batteries à 95%\n"
-                        f"• 06h00: Mode AUTO\n\n"
-                        f"Évitez la consommation en heures pleines!",
-                    )
-                else:
-                    logger.debug(
-                        "tempo_precharge_not_needed",
-                        color=color.value if color else "unknown",
-                    )
+            logger.debug("scheduled_job_completed", job="monitor_batteries")
 
         except Exception as e:
             logger.error(
                 "scheduled_job_failed",
-                job="check_tempo_tomorrow",
+                job="monitor_batteries",
                 error=str(e),
                 exc_info=True,
             )
+            await db.rollback()
 
 
-async def job_monitor_batteries() -> None:
-    """Exécuté toutes les 5 minutes - Monitoring complet des batteries."""
-    global _consecutive_all_offline, _soc_100_notified, _last_monitoring_date
+async def job_health_check() -> None:
+    """Exécuté toutes les 1 minute - Vérifie connectivité batteries.
 
-    logger.debug("scheduled_job_started", job="monitor_batteries")
-
-    # Reset SOC notifications at midnight
-    today = datetime.now().strftime("%Y-%m-%d")
-    if today != _last_monitoring_date:
-        _soc_100_notified = {}
-        _last_monitoring_date = today
-        logger.debug("soc_notifications_reset", date=today)
+    Vérifie que toutes les batteries sont accessibles et met à jour
+    le champ last_seen_at en base de données.
+    """
+    logger.debug("scheduled_job_started", job="health_check")
 
     async with async_session_maker() as db:
         try:
+            from sqlalchemy import select, update
+
+            from app.models import Battery
+
+            # Récupérer toutes les batteries actives
             stmt = select(Battery).where(Battery.is_active)
             result = await db.execute(stmt)
-            batteries = list(result.scalars().all())
+            batteries = result.scalars().all()
 
             if not batteries:
-                logger.debug("no_active_batteries_for_monitoring")
+                logger.debug("no_active_batteries_for_health_check")
                 return
 
-            client = MarstekUDPClient(timeout=5.0, max_retries=2)
-            notifier = _get_notifier()
-            online_count = 0
-            offline_count = 0
+            manager = BatteryManager()
 
+            # Vérifier chaque batterie avec délai pour éviter rate limiting
             for i, battery in enumerate(batteries):
                 if i > 0:
-                    await asyncio.sleep(DELAY_BETWEEN_BATTERIES_SECONDS)
+                    await asyncio.sleep(3)  # 3 secondes entre chaque batterie
 
                 try:
-                    bat_status = await client.get_battery_status(
+                    # Tentative de récupération du status (test de connectivité)
+                    await manager.client.get_device_info(
                         battery.ip_address, battery.udp_port
                     )
 
+                    # Mettre à jour last_seen_at
                     await db.execute(
                         update(Battery)
                         .where(Battery.id == battery.id)
                         .values(last_seen_at=datetime.utcnow())
                     )
-                    online_count += 1
-
-                    soc = bat_status.soc if bat_status else 0
-                    bat_temp = bat_status.bat_temp if bat_status else None
-
-                    # Notification SOC 100% (once per day per battery)
-                    if soc >= SOC_FULL_THRESHOLD:
-                        if not _soc_100_notified.get(battery.id, False):
-                            _soc_100_notified[battery.id] = True
-                            await notifier.send_info(
-                                "🔋 Batterie 100%",
-                                f"{battery.name} est complètement chargée!\n"
-                                f"SOC: {soc}%",
-                            )
-                            logger.info(
-                                "soc_100_notification_sent",
-                                battery_id=battery.id,
-                                battery_name=battery.name,
-                            )
-                    elif soc < 95:
-                        # Reset notification flag when SOC drops
-                        _soc_100_notified[battery.id] = False
-
-                    # Alert low SOC
-                    if soc < SOC_LOW_THRESHOLD:
-                        logger.warning(
-                            "battery_low_soc",
-                            battery_id=battery.id,
-                            battery_name=battery.name,
-                            soc=soc,
-                        )
-
-                    # Alert high temperature
-                    if bat_temp and bat_temp > TEMPERATURE_HIGH_THRESHOLD:
-                        logger.warning(
-                            "battery_high_temperature",
-                            battery_id=battery.id,
-                            battery_name=battery.name,
-                            temperature=bat_temp,
-                        )
 
                     logger.debug(
-                        "battery_monitoring_ok",
+                        "battery_health_check_ok",
                         battery_id=battery.id,
-                        battery_name=battery.name,
-                        soc=soc,
+                        ip=battery.ip_address,
                     )
 
                 except Exception as e:
-                    offline_count += 1
                     logger.warning(
-                        "battery_monitoring_failed",
+                        "battery_health_check_failed",
                         battery_id=battery.id,
-                        battery_name=battery.name,
                         ip=battery.ip_address,
                         error=str(e),
                     )
 
             await db.commit()
 
-            logger.info(
-                "scheduled_job_completed",
-                job="monitor_batteries",
-                online_count=online_count,
-                offline_count=offline_count,
-                total_count=len(batteries),
-            )
-
-            # Alert only after CONSECUTIVE failures (avoid false positives)
-            if offline_count == len(batteries) and len(batteries) > 0:
-                _consecutive_all_offline += 1
-                logger.warning(
-                    "all_batteries_offline",
-                    consecutive_count=_consecutive_all_offline,
-                    threshold=CONSECUTIVE_FAILURES_BEFORE_ALERT,
-                )
-
-                if _consecutive_all_offline >= CONSECUTIVE_FAILURES_BEFORE_ALERT:
-                    await notifier.send_error(
-                        "🚨 TOUTES BATTERIES HORS LIGNE",
-                        f"Aucune des {len(batteries)} batteries ne répond "
-                        f"depuis {_consecutive_all_offline * 5} minutes!\n"
-                        f"Vérifiez le réseau et l'API Marstek.",
-                    )
-            else:
-                # Reset counter if at least one battery responds
-                if _consecutive_all_offline > 0:
-                    logger.info(
-                        "batteries_back_online",
-                        previous_consecutive_failures=_consecutive_all_offline,
-                    )
-                _consecutive_all_offline = 0
+            logger.debug("scheduled_job_completed", job="health_check")
 
         except Exception as e:
             logger.error(
                 "scheduled_job_failed",
-                job="monitor_batteries",
+                job="health_check",
                 error=str(e),
                 exc_info=True,
             )

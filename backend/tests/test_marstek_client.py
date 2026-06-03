@@ -10,9 +10,11 @@ from app.core.marstek_client import MarstekAPIError, MarstekUDPClient
 from app.models.marstek_api import (
     BatteryStatus,
     DeviceInfo,
+    EMStatus,
     ESStatus,
     ManualConfig,
     ModeInfo,
+    PVStatus,
 )
 
 
@@ -282,6 +284,77 @@ async def test_get_es_status(client: MarstekUDPClient, mock_socket: MagicMock) -
 
 
 @pytest.mark.asyncio
+async def test_get_em_status_sends_command(
+    client: MarstekUDPClient, mock_socket: MagicMock
+) -> None:
+    """Test EM.GetStatus command and Rev 2.0 fields."""
+    response = json.dumps(
+        {
+            "id": 1,
+            "src": "VenusC-test",
+            "result": {
+                "id": 0,
+                "ct_state": 1,
+                "a_power": 100.0,
+                "b_power": 0.0,
+                "c_power": 0.0,
+                "total_power": 100.0,
+                "input_energy": 1234.0,
+                "output_energy": 567.0,
+            },
+        }
+    ).encode("utf-8")
+
+    mock_socket.recvfrom.return_value = (response, ("192.168.1.100", 30000))
+
+    with patch.object(client, "_create_socket", return_value=mock_socket):
+        status = await client.get_em_status("192.168.1.100", 30000)
+
+        assert isinstance(status, EMStatus)
+        assert status.ct_state == 1
+        assert status.total_power == 100.0
+
+        call_args = mock_socket.sendto.call_args
+        sent_data = json.loads(call_args[0][0].decode("utf-8"))
+        assert sent_data["method"] == "EM.GetStatus"
+        assert sent_data["params"]["id"] == 0
+
+
+@pytest.mark.asyncio
+async def test_get_pv_status_sends_command(
+    client: MarstekUDPClient, mock_socket: MagicMock
+) -> None:
+    """Test PV.GetStatus command and PV_state alias parsing."""
+    response = json.dumps(
+        {
+            "id": 1,
+            "src": "VenusC-test",
+            "result": {
+                "id": 0,
+                "pv_power": 450.0,
+                "pv_voltage": 36.5,
+                "pv_current": 12.3,
+                "PV_state": 2,
+            },
+        }
+    ).encode("utf-8")
+
+    mock_socket.recvfrom.return_value = (response, ("192.168.1.100", 30000))
+
+    with patch.object(client, "_create_socket", return_value=mock_socket):
+        status = await client.get_pv_status("192.168.1.100", 30000)
+
+        assert isinstance(status, PVStatus)
+        assert status.pv_power == 450.0
+        assert status.pv_state == 2
+
+        call_args = mock_socket.sendto.call_args
+        sent_data = json.loads(call_args[0][0].decode("utf-8"))
+        assert sent_data["method"] == "PV.GetStatus"
+        assert sent_data["params"]["id"] == 0
+
+
+@pytest.mark.asyncio
 async def test_get_current_mode(
     client: MarstekUDPClient, mock_socket: MagicMock
 ) -> None:
@@ -308,6 +381,40 @@ async def test_get_current_mode(
         assert isinstance(mode_info, ModeInfo)
         assert mode_info.mode == "Auto"
         assert mode_info.bat_soc == 98
+
+
+@pytest.mark.asyncio
+async def test_get_current_mode_rev2_fields(
+    client: MarstekUDPClient, mock_socket: MagicMock
+) -> None:
+    """Test ES.GetMode parses optional Rev 2.0 CT fields."""
+    response = json.dumps(
+        {
+            "id": 1,
+            "src": "VenusC-test",
+            "result": {
+                "id": 0,
+                "mode": "Auto",
+                "bat_soc": 98,
+                "ct_state": 1,
+                "a_power": 12.0,
+                "b_power": 0.0,
+                "c_power": 0.0,
+                "total_power": 12.0,
+                "input_energy": 10.0,
+                "output_energy": 2.0,
+            },
+        }
+    ).encode("utf-8")
+
+    mock_socket.recvfrom.return_value = (response, ("192.168.1.100", 30000))
+
+    with patch.object(client, "_create_socket", return_value=mock_socket):
+        mode_info = await client.get_current_mode("192.168.1.100", 30000)
+
+        assert mode_info.ct_state == 1
+        assert mode_info.a_power == 12.0
+        assert mode_info.total_power == 12.0
 
 
 @pytest.mark.asyncio

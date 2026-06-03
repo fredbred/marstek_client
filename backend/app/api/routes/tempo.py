@@ -8,7 +8,7 @@ from slowapi import Limiter
 from slowapi.util import get_remote_address
 
 from app.api.schemas import TempoCalendarResponse
-from app.core.tempo_service import TempoCalendar, TempoService
+from app.core.tempo_service import TempoCalendar, TempoService, scheduler_today_date
 
 logger = structlog.get_logger(__name__)
 
@@ -36,7 +36,7 @@ async def get_tempo_today(
         Couleur Tempo aujourd'hui
     """
     try:
-        today = date.today()
+        today = scheduler_today_date()
         color = await tempo_service.get_tempo_color(today)
 
         calendar = TempoCalendar(date=today, color=color)
@@ -67,7 +67,7 @@ async def get_tempo_tomorrow(
         Couleur Tempo demain
     """
     try:
-        tomorrow = date.today() + timedelta(days=1)
+        tomorrow = scheduler_today_date() + timedelta(days=1)
         color = await tempo_service.get_tomorrow_color()
 
         calendar = TempoCalendar(date=tomorrow, color=color)

@@ -13,13 +13,13 @@ Le système de planification utilise APScheduler avec persistance PostgreSQL pou
 
 ### 2. `job_switch_to_manual_night` - 22h00
 - **Fréquence** : Tous les jours à 22h00
-- **Action** : Passe toutes les batteries en mode MANUAL avec 0W décharge
+- **Action** : Check Tempo nuit ; conserve Auto hors rouge, précharge Passive / UPS si demain est rouge
 - **Trigger** : Cron (22:00)
 
-### 3. `job_check_tempo_tomorrow` - 11h30
-- **Fréquence** : Tous les jours à 11h30
-- **Action** : Vérifie si le lendemain est un jour rouge Tempo et active la précharge si nécessaire
-- **Trigger** : Cron (11:30)
+### 3. `job_check_tempo_tomorrow` - 12h30
+- **Fréquence** : Tous les jours à 12h30
+- **Action** : Vérifie si le lendemain est un jour rouge Tempo et envoie une notification seule
+- **Trigger** : Cron (12:30)
 
 ### 4. `job_monitor_batteries` - Toutes les 5 minutes
 - **Fréquence** : Toutes les 5 minutes
@@ -45,8 +45,7 @@ Les paramètres du scheduler sont dans `app.config.SchedulerSettings` :
 - `max_workers` : 4 (par défaut)
 - `auto_mode_start_hour` : 6
 - `auto_mode_end_hour` : 22
-- `manual_mode_start_hour` : 22
-- `manual_mode_end_hour` : 6
+- `manual_mode_start_hour` / `manual_mode_end_hour` : conservés pour compatibilité, plus utilisés pour une bascule nuit normale
 
 ## Utilisation
 

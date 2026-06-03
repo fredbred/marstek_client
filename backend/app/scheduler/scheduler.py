@@ -90,8 +90,8 @@ def _register_jobs(scheduler: AsyncIOScheduler) -> None:
 
     Jobs configurés :
     - 06:00 : Passage mode AUTO pour la journée
-    - 22:00 : Passage mode MANUAL nuit
-    - 11:30 : Vérification Tempo RTE
+    - 22:00 : Check Tempo nuit, précharge seulement si rouge demain
+    - 12:30 : Vérification Tempo RTE (notification seule)
     - Toutes les 5 min : Monitoring batteries (health check + status)
 
     Rate limiting: Les batteries sont interrogées séquentiellement avec
@@ -111,22 +111,22 @@ def _register_jobs(scheduler: AsyncIOScheduler) -> None:
         max_instances=1,
     )
 
-    # Job: Passage en mode MANUAL nuit à 22h00
+    # Job: Check Tempo nuit à 22h00 (précharge seulement si rouge demain)
     scheduler.add_job(
         job_switch_to_manual_night,
         trigger=CronTrigger(hour=22, minute=0, timezone=settings.scheduler.timezone),
         id="switch_to_manual_night",
-        name="Switch to MANUAL night mode (22h00)",
+        name="Check Tempo night/precharge (22h00)",
         replace_existing=True,
         max_instances=1,
     )
 
-    # Job: Vérification Tempo RTE à 11h30
+    # Job: Vérification Tempo RTE à 12h30 (notification seule)
     scheduler.add_job(
         job_check_tempo_tomorrow,
         trigger=CronTrigger(hour=12, minute=30, timezone=settings.scheduler.timezone),
         id="check_tempo_tomorrow",
-        name="Check Tempo RTE and activate precharge (12h30)",
+        name="Check Tempo RTE notify only (12h30)",
         replace_existing=True,
         max_instances=1,
     )

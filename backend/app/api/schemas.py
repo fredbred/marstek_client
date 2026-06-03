@@ -47,6 +47,52 @@ class BatteryStatusResponse(BaseModel):
     )
 
 
+class ModbusDiagnosticsResponse(BaseModel):
+    """Read-only Modbus diagnostic values."""
+
+    ac_voltage: float | None = Field(default=None, description="AC voltage [V]")
+    ac_frequency: float | None = Field(default=None, description="AC frequency [Hz]")
+    inverter_state: int | None = Field(default=None, description="Inverter state")
+    battery_discharge_current_limit: int | None = Field(
+        default=None, description="Battery discharge current limit raw register value"
+    )
+    max_discharge_power: int | None = Field(
+        default=None, description="Maximum discharge power [W]"
+    )
+
+
+class BatteryDiagnosticsResponse(BaseModel):
+    """Read-only battery diagnostic summary."""
+
+    battery_id: int
+    battery_name: str
+    timestamp: datetime
+    ip_address: str
+    udp_port: int
+    soc: int | None = Field(default=None, ge=0, le=100)
+    charg_flag: bool | None = None
+    dischrg_flag: bool | None = None
+    mode: str | None = None
+    bat_power: float | None = Field(default=None, description="Battery power [W]")
+    pv_power: float | None = Field(default=None, description="PV power [W]")
+    pv_voltage: float | None = Field(default=None, description="PV voltage [V]")
+    pv_current: float | None = Field(default=None, description="PV current [A]")
+    pv_state: int | str | None = Field(default=None, description="PV state")
+    ongrid_power: float | None = Field(default=None, description="Grid-tied power [W]")
+    offgrid_power: float | None = Field(default=None, description="Off-grid power [W]")
+    ct_state: int | None = Field(default=None, description="CT clamp state")
+    a_power: float | None = Field(default=None, description="Phase A power [W]")
+    b_power: float | None = Field(default=None, description="Phase B power [W]")
+    c_power: float | None = Field(default=None, description="Phase C power [W]")
+    total_power: float | None = Field(default=None, description="Total meter power [W]")
+    input_energy: float | None = Field(default=None, description="Imported energy [Wh]")
+    output_energy: float | None = Field(
+        default=None, description="Exported energy [Wh]"
+    )
+    modbus: ModbusDiagnosticsResponse | None = None
+    errors: dict[str, str] = Field(default_factory=dict)
+
+
 class ManualModeConfig(BaseModel):
     """Configuration for manual mode."""
 

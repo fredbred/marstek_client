@@ -18,6 +18,8 @@ def mock_client() -> MagicMock:
     client.get_battery_status = AsyncMock()
     client.get_es_status = AsyncMock()
     client.get_current_mode = AsyncMock()
+    client.get_em_status = AsyncMock()
+    client.get_pv_status = AsyncMock()
     client.set_mode_auto = AsyncMock()
     client.set_mode_manual = AsyncMock()
     return client
@@ -386,3 +388,72 @@ async def test_log_status_to_db(
     # Cleanup
     bm_module._battery_status_cache = {}
     bm_module._battery_cache_timestamps = {}
+
+
+@pytest.mark.asyncio
+async def test_get_battery_diagnostics_partial_sources(
+    mock_client: MagicMock, sample_batteries: list[Battery]
+) -> None:
+    """Test read-only diagnostics tolerate source failures."""
+    from app.core.marstek_modbus_client import MarstekModbusStatus
+    from app.models.marstek_api import (
+        BatteryStatus,
+        EMStatus,
+        ESStatus,
+        ModeInfo,
+        PVStatus,
+    )
+
+    modbus_client = MagicMock()
+    modbus_client.read_diagnostics = AsyncMock(
+        return_value=MarstekModbusStatus(
+            ac_voltage=253.1,
+            ac_frequency=50.0,
+            inverter_state=3,
+            battery_discharge_current_limit=12,
+            max_discharge_power=800,
+        )
+    )
+
+    manager = BatteryManager(client=mock_client, modbus_client=modbus_client)
+    battery = sample_batteries[0]
+
+    mock_client.get_battery_status.return_value = BatteryStatus(
+        id=0,
+        soc=72,
+        charg_flag=True,
+        dischrg_flag=False,
+    )
+    mock_client.get_es_status.return_value = ESStatus(
+        bat_soc=72,
+        bat_power=0.0,
+        pv_power=120.0,
+        ongrid_power=0.0,
+    )
+    mock_client.get_current_mode.return_value = ModeInfo(mode="Auto", ongrid_power=0.0)
+    mock_client.get_em_status.return_value = EMStatus(
+        ct_state=1,
+        a_power=0.0,
+        b_power=0.0,
+        c_power=0.0,
+        total_power=0.0,
+    )
+    mock_client.get_pv_status.return_value = PVStatus(
+        pv_power=130.0,
+        pv_voltage=36.5,
+        pv_current=3.6,
+        pv_state=2,
+    )
+
+    diagnostics = await manager.get_battery_diagnostics(battery)
+
+    assert diagnostics["battery_id"] == battery.id
+    assert diagnostics["soc"] == 72
+    assert diagnostics["dischrg_flag"] is False
+    assert diagnostics["mode"] == "Auto"
+    assert diagnostics["pv_power"] == 130.0
+    assert diagnostics["total_power"] == 0.0
+    assert diagnostics["modbus"]["ac_voltage"] == 253.1
+    assert diagnostics["errors"] == {}
+    mock_client.set_mode_auto.assert_not_called()
+    mock_client.set_mode_manual.assert_not_called()

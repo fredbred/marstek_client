@@ -42,6 +42,7 @@ make clean-all      # Nettoyage complet (⚠️ attention)
 ```
 
 ## 📚 Documentation
+- `docs/GUIDE_MODIFICATIONS_RECENTES.md` - **Mises à jour récentes** (scheduler, Telegram, Docker, Tempo)
 
 - `docs/architecture.md` - Architecture du système
 - `docs/api.md` - Documentation API
